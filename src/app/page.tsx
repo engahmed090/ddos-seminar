@@ -2,37 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Shield,
-  Activity,
-  Fingerprint,
-  Network,
-  Brain,
-  Play,
-  RotateCcw,
-  CheckCircle,
-  AlertTriangle,
-  Server,
-  MonitorSmartphone,
-  Zap,
-  Cloud,
-  Router,
-  Layers,
-  Globe,
-  Cpu,
-  Filter,
-  XCircle,
-  Check,
-  ArrowRight
+  Shield, Activity, Fingerprint, Network, Brain, Play, RotateCcw,
+  CheckCircle, AlertTriangle, Server, MonitorSmartphone, Zap, Cloud,
+  Router, Layers, Globe, Cpu, Filter, XCircle, Check, Map
 } from "lucide-react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
 /* --- MOCK DATA FOR TAB 1 --- */
@@ -55,13 +30,9 @@ const SIGNATURES = [
   { id: 5, type: "ACK", bad: false, delay: 4 },
 ];
 
-const AI_FEATURES = [
-  "Packet Rate", "Request Interval", "Click Speed", "Session Pattern",
-  "URL Repetition", "L7 Behavior", "User-Agent", "IP Reputation"
-];
+const AI_FEATURES = ["Packet Rate", "Request Interval", "Click Speed", "Session Pattern", "L7 Behavior"];
 
 export default function MasterDefenseSuite() {
-  // Navigation Tabs: 'detection' | 'mitigation'
   const [activeTab, setActiveTab] = useState<"detection" | "mitigation">("detection");
 
   // --- TAB 1 STATES (Detection Engine) ---
@@ -76,13 +47,18 @@ export default function MasterDefenseSuite() {
 
   // --- TAB 2 STATES (Mitigation Lab) ---
   const [activeMitScen, setActiveMitScen] = useState(1);
-  const [defenseActive, setDefenseActive] = useState(false);
+  const [mitStep, setMitStep] = useState(0);
+  const [mitCounter, setMitCounter] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset Tab 1
-  const resetDetection = () => {
+  // Stop any active simulations
+  const clearSims = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const resetDetection = () => {
+    clearSims();
     setSimStep(0);
     setScanTime(0);
     setChartData(BASE_TRAFFIC);
@@ -92,158 +68,104 @@ export default function MasterDefenseSuite() {
     setActiveFeat(-1);
   };
 
+  const resetMitigation = () => {
+    clearSims();
+    setMitStep(0);
+    setMitCounter(0);
+  };
+
   const changeDetectionScen = (id: number) => {
     if (simStep > 0 && simStep < 4) return;
     setActiveScen(id);
     resetDetection();
   };
 
+  const changeMitigationScen = (id: number) => {
+    if (mitStep > 0 && mitStep < 4) return;
+    setActiveMitScen(id);
+    resetMitigation();
+  };
+
+  const switchTab = (tab: "detection" | "mitigation") => {
+    if (activeTab === "detection" && simStep > 0 && simStep < 4) return;
+    if (activeTab === "mitigation" && mitStep > 0 && mitStep < 4) return;
+    setActiveTab(tab);
+    resetDetection();
+    resetMitigation();
+  };
+
   const runDetectionSim = () => {
     if (simStep !== 0) return;
     let currentStep = 1;
     setSimStep(1);
-    const nextStep = () => {
-      currentStep++;
-      if (currentStep <= 4) setSimStep(currentStep);
-    };
+    const nextStep = () => { currentStep++; if (currentStep <= 4) setSimStep(currentStep); };
 
     if (activeScen === 1) {
-      setTimeout(nextStep, 600);
-      setTimeout(nextStep, 1200);
+      setTimeout(nextStep, 600); setTimeout(nextStep, 1200);
       let t = 0;
-      timerRef.current = setInterval(() => {
-        t += 0.5;
-        setScanTime(t);
-        if (t >= 4.5) {
-          clearInterval(timerRef.current!);
-          setSimStep(4);
-        }
-      }, 500);
+      timerRef.current = setInterval(() => { t += 0.5; setScanTime(t); if (t >= 4.5) { clearInterval(timerRef.current!); setSimStep(4); } }, 500);
     } else if (activeScen === 2) {
-      setTimeout(nextStep, 800);
-      setTimeout(nextStep, 1600);
+      setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
       let point = 12;
-      timerRef.current = setInterval(() => {
-        setChartData(prev => [...prev, SPIKE_TRAFFIC[point]]);
-        point++;
-        if (point >= 15) {
-          clearInterval(timerRef.current!);
-          setSimStep(4);
-        }
-      }, 600);
+      timerRef.current = setInterval(() => { setChartData(prev => [...prev, SPIKE_TRAFFIC[point]]); point++; if (point >= 15) { clearInterval(timerRef.current!); setSimStep(4); } }, 600);
     } else if (activeScen === 3) {
-      setTimeout(nextStep, 800);
-      setTimeout(nextStep, 1600);
-      let count = 0;
-      let tick = 0;
-      timerRef.current = setInterval(() => {
-        tick++;
-        if (tick < 3) {
-          setFlowLines(p => [...p, { id: tick, type: "normal", step: tick }]);
-        } else {
-          setFlowLines(p => [...p, { id: tick, type: "attack", step: tick }]);
-          count += 124;
-          setSynCount(count);
-        }
-        if (count > 500) {
-          clearInterval(timerRef.current!);
-          setSimStep(4);
-        }
-      }, 400);
+      setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
+      let count = 0, tick = 0;
+      timerRef.current = setInterval(() => { tick++; if (tick < 3) { setFlowLines(p => [...p, { id: tick, type: "normal", step: tick }]); } else { setFlowLines(p => [...p, { id: tick, type: "attack", step: tick }]); count += 124; setSynCount(count); } if (count > 500) { clearInterval(timerRef.current!); setSimStep(4); } }, 400);
     } else if (activeScen === 4) {
-      setTimeout(nextStep, 600);
-      setTimeout(nextStep, 1800);
+      setTimeout(nextStep, 600); setTimeout(nextStep, 1800);
       let f = -1;
-      timerRef.current = setInterval(() => {
-        f++;
-        setActiveFeat(f);
-        setAiScores({
-          human: Math.max(2, 95 - f * 11),
-          bot: Math.min(98, 5 + f * 11),
-          conf: Math.min(99, 40 + f * 7),
-        });
-        if (f >= AI_FEATURES.length - 1) {
-          clearInterval(timerRef.current!);
-          setSimStep(4);
-        }
-      }, 400);
+      timerRef.current = setInterval(() => { f++; setActiveFeat(f); setAiScores({ human: Math.max(2, 95 - f * 15), bot: Math.min(98, 5 + f * 15), conf: Math.min(99, 40 + f * 10) }); if (f >= AI_FEATURES.length - 1) { clearInterval(timerRef.current!); setSimStep(4); } }, 500);
     }
   };
 
-  const steps = ["Monitoring", "Extracting Signals", "Analyzing", "Decision"];
-  
-  const getDetectionResult = () => {
-    if (activeScen === 1) return { title: "Attack Detected", reason: "Known signature matched." };
-    if (activeScen === 2) return { title: "Anomaly Detected", reason: "Traffic exceeded baseline." };
-    if (activeScen === 3) return { title: "Protocol Abuse", reason: "Too many incomplete handshakes." };
-    return { title: "Bot-like L7 Pattern", reason: "Behavior does not match human traffic." };
+  const runMitigationSim = () => {
+    if (mitStep !== 0) return;
+    let currentStep = 1;
+    setMitStep(1);
+    const nextStep = () => { currentStep++; if (currentStep <= 4) setMitStep(currentStep); };
+    setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
+    let c = 0;
+    timerRef.current = setInterval(() => { c++; setMitCounter(c); if (c >= 10) { clearInterval(timerRef.current!); setMitStep(4); } }, 400);
   };
 
-  // Switch mitigation labs cleanly
-  const handleMitigationChange = (id: number) => {
-    setActiveMitScen(id);
-    setDefenseActive(false);
-  };
+  const detStepsArr = ["Monitoring", "Extracting Signals", "Analyzing", "Decision"];
+  const mitStepsArr = ["Idle Topology", "Traffic Flow Starts", "Defenses Engaging", "Mitigation Complete"];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100 flex flex-col pb-12">
-      
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col pb-12 overflow-x-hidden">
       {/* HEADER */}
-      <header className="pt-8 pb-2 px-6 text-center shrink-0 w-full max-w-[98%] mx-auto">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-[1.5rem] shadow-sm border border-slate-100 mb-3">
-          <Shield className="w-8 h-8 text-blue-600" />
-        </div>
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-1">
-          AI-Driven Cyber Defense Suites
+      <header className="pt-8 pb-4 px-6 text-center w-full mx-auto">
+        <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-2">
+          Master Cyber Defense Lab
         </h1>
-        <p className="text-sm font-semibold text-slate-500 max-w-xl mx-auto">
-          Stage 4 Telecommunications Engineering Interactive Lab
-        </p>
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Interactive Network Topology Simulation</p>
       </header>
 
-      {/* MASSIVE PREMIUM TAB SWITCHER */}
-      <div className="w-full max-w-[98%] mx-auto my-6 z-30 relative flex justify-center items-center gap-6 px-4">
-        <button
-          onClick={() => { setActiveTab("detection"); }}
-          className={`flex items-center gap-4 px-12 py-5 rounded-[2.5rem] border-2 transition-all duration-300 ${
-            activeTab === "detection"
-              ? "bg-blue-600 border-blue-600 text-white shadow-[0_12px_30px_rgba(37,99,235,0.35)] scale-105 font-black"
-              : "bg-white/90 border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-bold"
-          }`}
-        >
-          <Brain className="w-7 h-7" />
-          <span className="text-xl tracking-tight">Detection Engine</span>
+      {/* MASSIVE TAB SWITCHER */}
+      <div className="w-full flex justify-center items-center gap-6 my-4 mb-12 z-30 relative px-4">
+        <button onClick={() => switchTab("detection")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2.5rem] border-4 transition-all duration-300 w-80 ${activeTab === "detection" ? "bg-blue-600 border-blue-600 text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] scale-105 font-black" : "bg-white/80 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold"}`}>
+          <Brain className="w-8 h-8" />
+          <span className="text-2xl tracking-tight">Detection Engine</span>
         </button>
-
-        <button
-          onClick={() => { setActiveTab("mitigation"); }}
-          className={`flex items-center gap-4 px-12 py-5 rounded-[2.5rem] border-2 transition-all duration-300 ${
-            activeTab === "mitigation"
-              ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_12px_30px_rgba(5,150,105,0.35)] scale-105 font-black"
-              : "bg-white/90 border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-bold"
-          }`}
-        >
-          <Router className="w-7 h-7" />
-          <span className="text-xl tracking-tight">Mitigation Lab</span>
+        <button onClick={() => switchTab("mitigation")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2.5rem] border-4 transition-all duration-300 w-80 ${activeTab === "mitigation" ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_15px_40px_rgba(5,150,105,0.4)] scale-105 font-black" : "bg-white/80 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold"}`}>
+          <Router className="w-8 h-8" />
+          <span className="text-2xl tracking-tight">Mitigation Lab</span>
         </button>
       </div>
 
-      {/* ========================================== */}
-      {/* TAB 1: DETECTION ENGINE                    */}
-      {/* ========================================== */}
+      {/* --- TAB 1: DETECTION ENGINE --- */}
       {activeTab === "detection" && (
         <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col animate-[fadeIn_0.4s_ease-out]">
-          <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-[0_15px_50px_rgb(0,0,0,0.06)] flex-1 flex flex-col overflow-hidden relative">
-            
-            {/* Top Bar: Progress Timeline */}
+          <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl flex-1 flex flex-col overflow-hidden relative">
             <div className="p-8 border-b border-slate-50 flex items-center justify-center bg-white/50 backdrop-blur-md z-20">
               <div className="flex flex-wrap items-center justify-center w-full gap-4 text-base font-black tracking-wide">
-                {steps.map((s, i) => {
+                {detStepsArr.map((s, i) => {
                   const isActive = simStep === i + 1;
                   const isPast = simStep > i + 1 || simStep === 4;
                   return (
                     <React.Fragment key={s}>
-                      <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${isActive ? "bg-blue-50 text-blue-700 border-2 border-blue-100 scale-110" : isPast ? "text-slate-500" : "text-slate-300"}`}>
+                      <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${isActive ? "bg-blue-50 text-blue-700 border-2 border-blue-100 scale-110 shadow-sm" : isPast ? "text-slate-500" : "text-slate-300"}`}>
                         {isPast ? <CheckCircle className="w-6 h-6" /> : isActive ? <Zap className="w-6 h-6 animate-pulse" /> : <div className="w-6 h-6 rounded-full border-4 border-current opacity-30" />}
                         <span className="hidden md:inline">{s}</span>
                       </div>
@@ -253,16 +175,15 @@ export default function MasterDefenseSuite() {
                 })}
               </div>
             </div>
-
-            {/* Stage */}
-            <div className="flex-1 p-8 flex items-center justify-center relative min-h-[550px] bg-slate-50/40 overflow-hidden">
+            
+            <div className="flex-1 p-8 flex items-center justify-center relative min-h-[550px] bg-slate-50/50">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.03)_0%,transparent_70%)] pointer-events-none" />
-              
-              {/* Scenario 1 */}
+
+              {/* Det Scen 1 */}
               {activeScen === 1 && (
                 <div className="w-full max-w-5xl flex flex-col items-center relative z-10 scale-125">
                   <div className="w-full h-72 relative flex items-center justify-center">
-                    <div className="absolute left-1/2 -translate-x-1/2 w-48 h-72 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-[3rem] shadow-2xl z-20 flex flex-col items-center justify-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-48 h-72 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[3rem] shadow-2xl z-20 flex flex-col items-center justify-center">
                       <Fingerprint className={`w-20 h-20 transition-colors duration-500 ${simStep === 4 ? "text-red-500" : "text-blue-500"}`} />
                       {simStep > 0 && simStep < 4 && <div className="absolute inset-x-8 top-8 h-2 bg-blue-400 blur-[2px] animate-[scanBeam_1.5s_ease-in-out_infinite]" />}
                     </div>
@@ -273,16 +194,14 @@ export default function MasterDefenseSuite() {
                       let status = (xPos > 480 && !pkt.bad) ? "passed" : (pkt.bad && xPos >= 360) ? (simStep === 4 ? "caught" : "scanning") : "approaching";
                       if (pkt.bad && xPos >= 360) xPos = 360;
                       return (
-                        <div key={pkt.id} className={`absolute left-0 w-24 h-32 rounded-[2rem] border-4 flex items-center justify-center font-mono text-xl font-black transition-all duration-300 ease-linear shadow-md ${status === "caught" ? "bg-red-50 border-red-300 text-red-600 scale-110 z-30 shadow-red-100 animate-[shake_0.5s_ease-in-out]" : status === "scanning" ? "bg-white border-blue-300 text-blue-500 z-30 scale-105" : status === "passed" ? "bg-white border-emerald-200 text-emerald-400 opacity-0" : "bg-white border-slate-200 text-slate-400 z-10"}`} style={{ transform: `translateX(${xPos}px) translateY(-50%)`, top: '50%' }}>
-                          {pkt.type}
-                        </div>
+                        <div key={pkt.id} className={`absolute left-0 w-24 h-32 rounded-[2rem] border-4 flex items-center justify-center font-mono text-xl font-black transition-all duration-300 ease-linear shadow-md ${status === "caught" ? "bg-red-50 border-red-300 text-red-600 scale-110 z-30 shadow-red-100 animate-[shake_0.5s_ease-in-out]" : status === "scanning" ? "bg-white border-blue-300 text-blue-500 z-30 scale-105" : status === "passed" ? "bg-white border-emerald-200 text-emerald-400 opacity-0" : "bg-white border-slate-200 text-slate-400 z-10"}`} style={{ transform: `translateX(${xPos}px) translateY(-50%)`, top: '50%' }}>{pkt.type}</div>
                       )
                     })}
                   </div>
                 </div>
               )}
 
-              {/* Scenario 2 */}
+              {/* Det Scen 2 */}
               {activeScen === 2 && (
                 <div className="w-full max-w-6xl h-full flex flex-col justify-center relative z-10 scale-110">
                   <div className="h-[450px] w-full relative bg-white/90 p-8 rounded-[4rem] border border-slate-100 shadow-2xl">
@@ -306,7 +225,7 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* Scenario 3 */}
+              {/* Det Scen 3 */}
               {activeScen === 3 && (
                 <div className="w-full max-w-6xl flex items-center justify-between px-16 relative z-10 scale-110">
                   <div className="flex flex-col items-center gap-8">
@@ -326,7 +245,7 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* Scenario 4 */}
+              {/* Det Scen 4 */}
               {activeScen === 4 && (
                 <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center gap-24 relative z-10 scale-105">
                   <div className="flex flex-col gap-6 w-80">
@@ -349,247 +268,189 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* Fixed Bottom-Right Action Buttons */}
+              {/* ACTION BUTTONS */}
               <div className="absolute bottom-12 right-12 z-50 flex items-center gap-6">
-                <button onClick={resetDetection} disabled={simStep === 0} className="w-20 h-20 bg-white text-slate-600 border-2 border-slate-100 rounded-[2rem] hover:bg-slate-50 shadow-xl flex items-center justify-center disabled:opacity-30">
+                <button onClick={resetDetection} disabled={simStep === 0} className="w-20 h-20 bg-white text-slate-600 border-2 border-slate-200 rounded-[2rem] hover:bg-slate-50 shadow-xl flex items-center justify-center disabled:opacity-30">
                   <RotateCcw className="w-10 h-10" />
                 </button>
                 <button onClick={runDetectionSim} disabled={simStep !== 0} className="h-20 px-12 bg-blue-600 text-white rounded-[2rem] font-black text-2xl hover:bg-blue-700 hover:scale-105 transition-all shadow-[0_20px_50px_rgba(37,99,235,0.4)] flex items-center gap-4 disabled:opacity-30 disabled:scale-100 disabled:shadow-none">
-                  <Play className="w-8 h-8 fill-current" /> Run Simulation
+                  <Play className="w-8 h-8 fill-current" /> Run Detection
                 </button>
               </div>
-
-              {/* Results Overlay */}
-              <div className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-500 z-50 ${simStep === 4 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-20 scale-90 pointer-events-none'}`}>
-                <div className="px-10 py-8 rounded-[3.5rem] bg-white/95 backdrop-blur-3xl border-2 border-red-100 shadow-[0_30px_100px_rgba(239,68,68,0.3)] flex items-center gap-8">
-                  <div className="w-16 h-16 rounded-3xl bg-red-50 flex items-center justify-center shrink-0 border border-red-100"><AlertTriangle className="w-8 h-8 text-red-500" /></div>
-                  <div><h4 className="text-2xl font-black text-slate-900 mb-2 leading-none">{getDetectionResult().title}</h4><p className="text-lg font-bold text-slate-500">{getDetectionResult().reason}</p></div>
-                </div>
-              </div>
-
             </div>
           </div>
 
-          {/* Bottom Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-10">
+          <div className="flex gap-6 mt-8 overflow-x-auto pb-4 justify-center">
             {[
-              {id: 1, title: "Signature", icon: Fingerprint, desc: "Known patterns detection."},
-              {id: 2, title: "Anomaly", icon: Activity, desc: "Learned baseline detection."},
-              {id: 3, title: "Protocol", icon: Network, desc: "TCP/UDP state inspection."},
-              {id: 4, title: "AI Core", icon: Brain, desc: "L7 Behavioral analysis."}
-            ].map((scen) => (
-              <button key={scen.id} onClick={() => changeDetectionScen(scen.id)} className={`text-left p-10 rounded-[3.5rem] border-4 transition-all duration-300 group ${activeScen === scen.id ? 'bg-white border-blue-400 shadow-[0_30px_60px_rgba(37,99,235,0.15)] ring-8 ring-blue-50 -translate-y-4' : 'bg-white/60 border-slate-100 hover:bg-white hover:border-slate-300 shadow-lg hover:-translate-y-2'}`}>
-                <div className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center mb-8 transition-all ${activeScen === scen.id ? 'bg-blue-600 text-white scale-110 shadow-xl' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}`}><scen.icon className="w-10 h-10" /></div>
-                <h3 className={`font-black text-2xl mb-3 tracking-tight ${activeScen === scen.id ? 'text-slate-900' : 'text-slate-700'}`}>{scen.title}</h3>
-                <p className="text-lg font-bold text-slate-400 line-clamp-2 leading-relaxed">{scen.desc}</p>
+              {id: 1, title: "Signature", icon: Fingerprint},
+              {id: 2, title: "Anomaly", icon: Activity},
+              {id: 3, title: "Protocol", icon: Network},
+              {id: 4, title: "AI Core", icon: Brain}
+            ].map(scen => (
+              <button key={scen.id} onClick={() => changeDetectionScen(scen.id)} className={`flex-1 min-w-[250px] p-8 rounded-[3rem] border-4 transition-all duration-300 ${activeScen === scen.id ? 'bg-white border-blue-400 shadow-xl ring-8 ring-blue-50 scale-105 text-slate-900' : 'bg-white/60 border-slate-100 text-slate-500 hover:bg-white'}`}>
+                <div className={`w-16 h-16 rounded-[2rem] flex items-center justify-center mb-6 mx-auto ${activeScen === scen.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}><scen.icon className="w-8 h-8" /></div>
+                <h3 className="font-black text-xl text-center">{scen.title}</h3>
               </button>
             ))}
           </div>
         </main>
       )}
 
-      {/* ========================================== */}
-      {/* TAB 2: MITIGATION LAB (Cisco Network Style)*/}
-      {/* ========================================== */}
+      {/* --- TAB 2: MITIGATION LAB (PURE CISCO PACKET TRACER THEME) --- */}
       {activeTab === "mitigation" && (
         <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col animate-[fadeIn_0.4s_ease-out]">
           
-          {/* Main Network Stage Area */}
-          <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-[0_15px_50px_rgb(0,0,0,0.06)] flex-1 flex flex-col overflow-hidden relative min-h-[600px]">
+          <div className="bg-slate-900 rounded-[3.5rem] border-8 border-slate-800 shadow-[0_30px_60px_rgb(0,0,0,0.5)] flex-1 flex flex-col overflow-hidden relative min-h-[700px]">
             
-            {/* Top Mit Switcher Row inside stage */}
-            <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between px-10">
-              <div className="flex items-center gap-3 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
-                {[
-                  { id: 1, label: "1. Scrubbing" },
-                  { id: 2, label: "2. CDN Anycast" },
-                  { id: 3, label: "3. Rate Limiting" },
-                  { id: 4, label: "4. WAF Filter" },
-                  { id: 5, label: "5. Auto-Scaling" },
-                  { id: 6, label: "6. Perimeter ACL" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleMitigationChange(tab.id)}
-                    className={`px-6 py-3 rounded-2xl font-black text-sm transition-all whitespace-nowrap border-2 ${
-                      activeMitScen === tab.id 
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm scale-105" 
-                      : "bg-white border-slate-100 text-slate-400 hover:text-slate-700"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+            {/* Grid Background */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.05)_0%,transparent_60%)] pointer-events-none" />
 
-              {/* Master Defense Toggle Switch */}
-              <div className="shrink-0 pl-4 hidden xl:block">
-                <button
-                  onClick={() => setDefenseActive(!defenseActive)}
-                  className={`flex items-center gap-4 px-8 py-4 rounded-2xl font-black text-base transition-all border-2 ${
-                    defenseActive
-                    ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_10px_25px_rgba(5,150,105,0.4)]"
-                    : "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100"
-                  }`}
-                >
-                  <Filter className="w-5 h-5" />
-                  <span>{defenseActive ? "Mitigation Active (Protected)" : "Attack Flowing (Bypassed)"}</span>
-                </button>
+            {/* Top Indicator */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-center bg-slate-900/80 backdrop-blur-md z-20">
+              <div className="flex flex-wrap items-center justify-center w-full gap-4 text-sm font-black tracking-widest uppercase text-emerald-400">
+                {mitStepsArr.map((s, i) => (
+                  <React.Fragment key={s}>
+                    <div className={`px-4 py-2 rounded-xl transition-all ${mitStep === i + 1 ? "bg-emerald-900/50 border border-emerald-500 shadow-[0_0_15px_rgba(52,211,153,0.3)] text-white" : mitStep > i + 1 || mitStep === 4 ? "text-emerald-500" : "text-slate-600"}`}>
+                      {s}
+                    </div>
+                    {i < 3 && <div className="w-8 h-1 rounded-full bg-slate-800" />}
+                  </React.Fragment>
+                ))}
               </div>
             </div>
 
-            {/* Topology Area */}
-            <div className="flex-1 p-8 flex items-center justify-center relative bg-slate-50/20 overflow-hidden">
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 2px, transparent 2px)', backgroundSize: '40px 40px' }} />
-
-              {/* SCENARIO 1: DDoS Scrubbing Service */}
+            {/* CISCO STAGE */}
+            <div className="flex-1 p-8 flex items-center justify-center relative z-10 overflow-hidden">
+              
+              {/* Mit Scen 1: Scrubbing */}
               {activeMitScen === 1 && (
-                <div className="w-full max-w-6xl flex items-center justify-between relative z-10 px-8 scale-105">
+                <div className="w-full max-w-6xl flex items-center justify-between px-10 scale-110">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 bg-rose-50 border-4 border-rose-300 rounded-3xl flex items-center justify-center shadow-lg animate-pulse">
-                      <Cloud className="w-14 h-14 text-rose-500" />
+                    <div className={`w-32 h-32 rounded-2xl flex items-center justify-center border-4 bg-slate-800 shadow-2xl relative ${mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-500'}`}>
+                      <Cloud className="w-16 h-16" />
+                      {mitStep > 0 && <div className="absolute inset-0 rounded-xl bg-rose-500/20 animate-pulse" />}
                     </div>
-                    <span className="font-black text-sm text-rose-600 bg-white px-4 py-1.5 rounded-full border border-rose-100 shadow-sm">Attacker Botnet</span>
+                    <span className="font-mono font-bold text-slate-400 uppercase text-xs">Attacker Net</span>
                   </div>
 
-                  {/* Flow Pipe */}
-                  <div className="flex-1 h-48 relative mx-10 flex items-center">
-                    <div className="absolute inset-x-0 h-4 bg-slate-200 rounded-full overflow-hidden flex items-center border-y border-slate-300">
-                      <div className={`h-full w-full animate-[slideRight_1s_linear_infinite] ${defenseActive ? 'bg-gradient-to-r from-rose-400 via-emerald-400 to-emerald-500' : 'bg-rose-500'}`} />
-                    </div>
+                  <div className="flex-1 h-2 bg-slate-800 mx-8 relative flex items-center overflow-hidden">
+                    {mitStep > 0 && <div className="absolute inset-0 bg-rose-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
+                  </div>
 
-                    {/* Scrubber Node in middle */}
-                    <div className={`absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center w-48 h-48 rounded-[2.5rem] transition-all border-4 shadow-2xl z-20 ${defenseActive ? 'bg-emerald-600 border-emerald-400 text-white scale-110 shadow-emerald-200' : 'bg-white border-slate-200 text-slate-400 opacity-60'}`}>
-                      <Layers className="w-16 h-16 mb-2" />
-                      <span className="font-black tracking-widest text-xs uppercase">Scrubbing Center</span>
-                      <span className="text-[10px] font-bold opacity-80">{defenseActive ? "Filtering 100Gbps" : "Offline"}</span>
-                    </div>
+                  <div className={`w-48 h-48 rounded-[2rem] flex flex-col items-center justify-center border-[6px] shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.2)]' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                    <Layers className="w-16 h-16 mb-4" />
+                    <span className="font-mono font-bold text-xs">Scrubbing Center</span>
+                  </div>
+
+                  <div className="flex-1 h-2 bg-slate-800 mx-8 relative flex items-center overflow-hidden">
+                    {mitStep === 4 && <div className="absolute inset-0 bg-emerald-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
                   </div>
 
                   <div className="flex flex-col items-center gap-4">
-                    <div className={`w-28 h-28 rounded-3xl flex items-center justify-center border-4 transition-all ${defenseActive ? 'bg-emerald-50 border-emerald-300 text-emerald-600 shadow-xl' : 'bg-rose-50 border-rose-300 text-rose-600 shadow-[0_0_50px_rgba(244,63,94,0.4)]'}`}>
-                      <Server className="w-14 h-14" />
-                    </div>
-                    <span className={`font-black text-sm bg-white px-4 py-1.5 rounded-full border shadow-sm ${defenseActive ? 'text-emerald-600 border-emerald-100' : 'text-rose-600 border-rose-100'}`}>Target Server</span>
+                    <div className={`w-32 h-32 rounded-2xl flex items-center justify-center border-4 shadow-2xl bg-slate-800 transition-all ${mitStep === 4 ? 'border-emerald-500 text-emerald-400' : 'border-slate-700 text-slate-600'}`}><Server className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 uppercase text-xs">Core Switch</span>
                   </div>
                 </div>
               )}
 
-              {/* SCENARIO 2: CDN & Anycast Network */}
+              {/* Mit Scen 2: Anycast */}
               {activeMitScen === 2 && (
-                <div className="w-full max-w-6xl flex flex-col items-center justify-center gap-12 relative z-10 scale-105">
-                  {/* Attackers top */}
-                  <div className="flex justify-around w-full px-20">
+                <div className="w-full max-w-6xl flex flex-col items-center justify-center gap-16 scale-110">
+                  <div className="flex justify-around w-full px-32">
                     {[1,2,3].map((i) => (
-                      <div key={i} className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-center justify-center text-rose-500 animate-bounce"><Cloud className="w-8 h-8" /></div>
-                        <span className="text-[10px] font-bold text-rose-500">Flood {i}</span>
-                      </div>
+                      <div key={i} className={`w-20 h-20 rounded-2xl flex items-center justify-center border-4 bg-slate-800 transition-all ${mitStep > 0 ? 'border-rose-500 text-rose-500 animate-bounce' : 'border-slate-700 text-slate-600'}`}><Cloud className="w-10 h-10" /></div>
                     ))}
                   </div>
 
-                  {/* CDN Edge nodes grid */}
                   <div className="flex justify-between w-full px-12 relative z-20">
-                    <div className="absolute inset-x-20 top-1/2 h-1 bg-slate-200 -z-10" />
-                    {[ "Edge Tokyo", "Edge Frankfurt", "Edge London", "Edge NY" ].map((node, i) => (
-                      <div key={node} className={`flex flex-col items-center justify-center w-40 h-32 rounded-3xl border-4 transition-all bg-white shadow-xl ${defenseActive ? 'border-emerald-400 text-emerald-600' : 'border-rose-300 text-rose-500'}`}>
-                        <Globe className="w-10 h-10 mb-2" />
-                        <span className="font-black text-xs">{node}</span>
-                        <span className="text-[9px] font-bold text-slate-400">{defenseActive ? "Absorbed Locally" : "Overloaded"}</span>
+                    <div className="absolute inset-x-20 top-1/2 h-2 bg-slate-800 -z-10" />
+                    {[ "N1", "N2", "N3", "N4" ].map((node) => (
+                      <div key={node} className={`flex flex-col items-center justify-center w-36 h-36 rounded-3xl border-4 transition-all bg-slate-800 shadow-2xl ${mitStep === 4 ? 'border-emerald-500 text-emerald-400' : mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-600'}`}>
+                        <Globe className="w-12 h-12 mb-2" />
+                        <span className="font-mono font-black text-sm">{node} Anycast</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Core Origin Server */}
-                  <div className={`flex items-center gap-4 px-10 py-5 rounded-[2.5rem] border-4 shadow-2xl transition-all ${defenseActive ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'bg-rose-50 border-rose-400 text-rose-700 animate-pulse'}`}>
-                    <Server className="w-10 h-10" />
-                    <div>
-                      <h4 className="font-black text-lg leading-none">Origin Backend Server</h4>
-                      <p className="text-xs font-bold opacity-75">{defenseActive ? "100% Green / Unscathed" : "Critical Latency Spikes"}</p>
-                    </div>
+                  <div className={`flex items-center gap-6 px-12 py-6 rounded-[2rem] border-4 shadow-2xl transition-all ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400' : mitStep > 0 ? 'bg-slate-800 border-rose-500 text-rose-500' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                    <Server className="w-12 h-12" />
+                    <h4 className="font-mono font-black text-xl">Datacenter Origin</h4>
                   </div>
                 </div>
               )}
 
-              {/* SCENARIO 3: Rate Limiting */}
+              {/* Mit Scen 3: Rate Limiting */}
               {activeMitScen === 3 && (
-                <div className="w-full max-w-5xl flex items-center justify-between relative z-10 px-12 scale-110">
+                <div className="w-full max-w-5xl flex items-center justify-between px-16 scale-110">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 bg-slate-50 border-4 border-slate-200 rounded-3xl flex items-center justify-center"><MonitorSmartphone className="w-14 h-14 text-slate-500" /></div>
-                    <span className="font-black text-sm text-slate-600 bg-white px-4 py-1.5 rounded-full border shadow-sm">API Gateway Input</span>
+                    <div className="w-32 h-32 rounded-2xl border-4 border-slate-700 bg-slate-800 flex items-center justify-center text-slate-500"><MonitorSmartphone className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 text-xs">Gateway IN</span>
                   </div>
 
-                  <div className="flex-1 flex flex-col items-center justify-center gap-4 mx-16 relative">
-                    {/* Visual Meter */}
-                    <div className="w-full bg-slate-100 h-8 rounded-2xl p-1.5 border border-slate-200 flex items-center overflow-hidden relative">
-                      <div className={`h-full rounded-xl transition-all duration-500 ${defenseActive ? 'w-1/3 bg-emerald-500' : 'w-full bg-rose-500 animate-pulse'}`} />
-                      <span className="absolute left-1/2 -translate-x-1/2 text-xs font-black text-slate-800 drop-shadow-sm">
-                        {defenseActive ? "Strict Quota: 50 Req/s" : "Uncapped Flood: 9,500 Req/s"}
-                      </span>
+                  <div className="flex-1 flex flex-col items-center justify-center gap-6 mx-20">
+                    <div className="w-full bg-slate-800 h-10 rounded-2xl p-1.5 border-4 border-slate-700 flex items-center overflow-hidden relative">
+                      {mitStep > 0 && <div className={`h-full rounded-xl transition-all duration-500 ${mitStep === 4 ? 'w-1/3 bg-emerald-500' : 'w-full bg-rose-500'}`} />}
+                      <span className="absolute left-1/2 -translate-x-1/2 font-mono text-sm font-black text-white">{mitStep === 4 ? "50/s (CAPPED)" : mitStep > 0 ? "9999/s (FLOOD)" : "0/s (IDLE)"}</span>
                     </div>
-
-                    <div className="flex gap-4">
-                      <span className={`px-4 py-2 rounded-xl text-xs font-black border flex items-center gap-2 ${defenseActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'opacity-40'}`}><Check className="w-4 h-4" /> Passed</span>
-                      <span className={`px-4 py-2 rounded-xl text-xs font-black border flex items-center gap-2 ${defenseActive ? 'bg-rose-50 text-rose-600 border-rose-200 animate-bounce' : 'opacity-40'}`}><XCircle className="w-4 h-4" /> Dropped Over-limit</span>
-                    </div>
+                    {mitStep === 4 && (
+                      <div className="flex gap-6">
+                        <span className="font-mono font-black text-emerald-400 flex items-center gap-2 bg-emerald-900/30 px-4 py-2 rounded-lg border border-emerald-500/50"><Check className="w-5 h-5" /> PASS</span>
+                        <span className="font-mono font-black text-rose-400 flex items-center gap-2 bg-rose-900/30 px-4 py-2 rounded-lg border border-rose-500/50"><XCircle className="w-5 h-5" /> DROP</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 bg-blue-50 border-4 border-blue-200 rounded-3xl flex items-center justify-center text-blue-600"><Cpu className="w-14 h-14" /></div>
-                    <span className="font-black text-sm text-blue-600 bg-white px-4 py-1.5 rounded-full border shadow-sm">Database Endpoint</span>
+                    <div className="w-32 h-32 rounded-2xl border-4 border-slate-700 bg-slate-800 flex items-center justify-center text-slate-500"><Cpu className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 text-xs">DB Engine</span>
                   </div>
                 </div>
               )}
 
-              {/* SCENARIO 4: Web Application Firewall (WAF) */}
+              {/* Mit Scen 4: WAF Filter */}
               {activeMitScen === 4 && (
-                <div className="w-full max-w-5xl flex items-center justify-between relative z-10 px-12 scale-110">
-                  <div className="flex flex-col gap-3 w-64">
+                <div className="w-full max-w-5xl flex items-center justify-between px-16 scale-110">
+                  <div className="flex flex-col gap-4 w-72">
                     {[
                       { t: "GET /index.html", bot: false },
                       { t: "POST /login (SQLi)", bot: true },
-                      { t: "GET / HTTP/1.1 (User-Agent: nil)", bot: true },
+                      { t: "GET / HTTP/1.1", bot: true },
                     ].map((req, idx) => (
-                      <div key={idx} className={`p-4 rounded-2xl border-2 font-mono text-xs font-bold flex items-center justify-between ${req.bot ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                      <div key={idx} className={`p-4 rounded-xl border-2 font-mono text-xs font-bold flex items-center justify-between ${mitStep > 0 && req.bot ? 'bg-rose-900/30 border-rose-500 text-rose-400' : mitStep > 0 && !req.bot ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
                         <span className="truncate">{req.t}</span>
-                        {req.bot ? <XCircle className="w-4 h-4 text-rose-500 shrink-0" /> : <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
                       </div>
                     ))}
                   </div>
 
-                  {/* L7 WAF Node */}
-                  <div className={`w-64 h-64 rounded-[3rem] border-8 flex flex-col items-center justify-center shadow-2xl transition-all relative z-20 ${defenseActive ? 'bg-emerald-600 border-emerald-400 text-white scale-110' : 'bg-white border-slate-200 text-slate-400'}`}>
-                    <Shield className="w-20 h-20 mb-3" />
-                    <span className="font-black text-base tracking-widest uppercase">Layer 7 WAF</span>
-                    <span className="text-xs font-bold opacity-80 mt-1">{defenseActive ? "Deep Packet Inspection" : "Bypass Mode"}</span>
+                  <div className={`w-72 h-72 rounded-3xl border-8 flex flex-col items-center justify-center shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-blue-500 text-blue-400 shadow-[0_0_50px_rgba(59,130,246,0.3)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                    <Shield className="w-24 h-24 mb-4" />
+                    <span className="font-mono font-black text-xl uppercase tracking-widest">L7 WAF</span>
                   </div>
 
                   <div className="flex flex-col items-center gap-4">
-                    <div className={`w-28 h-28 rounded-3xl flex items-center justify-center border-4 transition-all ${defenseActive ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-rose-50 border-rose-300 text-rose-600 animate-pulse'}`}><Server className="w-14 h-14" /></div>
-                    <span className="font-black text-sm bg-white px-4 py-1.5 rounded-full border shadow-sm text-slate-700">App Server Core</span>
+                    <div className={`w-32 h-32 rounded-2xl border-4 flex items-center justify-center transition-all bg-slate-800 ${mitStep === 4 ? 'border-emerald-500 text-emerald-400' : mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-600'}`}><Server className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 text-xs">App Server</span>
                   </div>
                 </div>
               )}
 
-              {/* SCENARIO 5: Auto-Scaling */}
+              {/* Mit Scen 5: Auto-Scaling */}
               {activeMitScen === 5 && (
-                <div className="w-full max-w-6xl flex items-center justify-between relative z-10 px-12 scale-105">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-24 h-24 bg-blue-600 text-white rounded-3xl flex items-center justify-center shadow-xl"><Router className="w-12 h-12" /></div>
-                    <span className="font-black text-xs uppercase tracking-wider text-slate-500">Load Balancer</span>
+                <div className="w-full max-w-6xl flex items-center justify-between px-16 scale-110">
+                  <div className="w-36 h-36 rounded-full border-[6px] border-slate-700 bg-slate-800 flex flex-col items-center justify-center shadow-2xl text-slate-500">
+                    <Router className="w-12 h-12 mb-2" />
+                    <span className="font-mono font-black text-xs uppercase">LB Core</span>
                   </div>
 
-                  {/* Connecting lines array */}
-                  <div className="flex-1 flex flex-col gap-6 items-center justify-center mx-12">
-                    <div className="w-full flex items-center justify-around gap-4">
+                  <div className="flex-1 flex flex-col gap-8 items-center justify-center mx-16">
+                    <div className="w-full flex items-center justify-around gap-6">
                       {[1, 2, 3, 4].map((srv) => {
-                        const isExtra = srv > 2;
-                        const isVisible = !isExtra || defenseActive;
+                        const isVisible = srv <= 2 || mitStep === 4;
                         return (
-                          <div key={srv} className={`flex flex-col items-center justify-center w-36 h-40 rounded-3xl border-4 transition-all duration-500 ${isVisible ? 'bg-white border-emerald-400 shadow-xl scale-100 opacity-100' : 'border-dashed border-slate-200 bg-slate-50 scale-90 opacity-40'}`}>
-                            <Server className={`w-10 h-10 mb-2 ${isVisible ? 'text-emerald-600' : 'text-slate-300'}`} />
-                            <span className="font-black text-xs text-slate-700">Instance {srv}</span>
-                            <span className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded-md ${isVisible ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{isVisible ? "Active (35% CPU)" : "Standby"}</span>
+                          <div key={srv} className={`flex flex-col items-center justify-center w-36 h-40 rounded-3xl border-[4px] transition-all duration-500 ${isVisible ? 'bg-slate-800 border-emerald-500 shadow-2xl text-emerald-400' : 'border-dashed border-slate-700 bg-slate-900/50 text-slate-700 opacity-30 scale-90'}`}>
+                            <Server className="w-12 h-12 mb-3" />
+                            <span className="font-mono font-black text-sm">INST {srv}</span>
                           </div>
                         )
                       })}
@@ -598,68 +459,63 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* SCENARIO 6: Geo/IP Filtering */}
+              {/* Mit Scen 6: Geo/IP Filtering */}
               {activeMitScen === 6 && (
-                <div className="w-full max-w-5xl flex items-center justify-between relative z-10 px-12 scale-110">
+                <div className="w-full max-w-5xl flex items-center justify-between px-16 scale-110">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 bg-rose-50 border-4 border-rose-300 rounded-3xl flex items-center justify-center text-rose-500 shadow-md"><Globe className="w-14 h-14" /></div>
-                    <span className="font-black text-sm text-rose-600 bg-white px-4 py-1.5 rounded-full border shadow-sm">Flagged Geo Origin</span>
+                    <div className={`w-32 h-32 rounded-2xl border-4 bg-slate-800 flex items-center justify-center shadow-md ${mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-600'}`}><Map className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 text-xs">Bad Subnet</span>
                   </div>
 
-                  {/* Perimeter ACL barrier */}
-                  <div className={`flex flex-col items-center justify-center w-64 h-64 rounded-[3rem] border-8 transition-all shadow-2xl relative z-20 ${defenseActive ? 'bg-slate-900 border-rose-500 text-white scale-110' : 'bg-white border-slate-200 text-slate-400'}`}>
-                    <Filter className="w-20 h-20 mb-3 text-rose-500 animate-pulse" />
-                    <span className="font-black text-base tracking-widest uppercase">Perimeter ACL</span>
-                    <span className="text-xs font-bold opacity-80 mt-1">{defenseActive ? "IP Subnets Dropped" : "Permit Any Any"}</span>
+                  <div className={`flex flex-col items-center justify-center w-72 h-72 rounded-[3rem] border-8 transition-all shadow-2xl relative z-20 ${mitStep === 4 ? 'bg-slate-900 border-rose-500 text-rose-400 shadow-[0_0_60px_rgba(244,63,94,0.3)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                    <Filter className="w-24 h-24 mb-4" />
+                    <span className="font-mono font-black text-xl uppercase tracking-widest">Router ACL</span>
                   </div>
 
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 bg-emerald-50 border-4 border-emerald-300 rounded-3xl flex items-center justify-center text-emerald-600 shadow-md"><Server className="w-14 h-14" /></div>
-                    <span className="font-black text-sm text-emerald-600 bg-white px-4 py-1.5 rounded-full border shadow-sm">Protected Infra</span>
+                    <div className="w-32 h-32 rounded-2xl border-4 border-slate-700 bg-slate-800 flex items-center justify-center text-slate-600 shadow-md"><Server className="w-16 h-16" /></div>
+                    <span className="font-mono font-bold text-slate-400 text-xs">Internal LAN</span>
                   </div>
                 </div>
               )}
 
-              {/* Visible toggle button for screens < xl */}
-              <div className="absolute bottom-8 right-8 z-40 block xl:hidden">
-                <button
-                  onClick={() => setDefenseActive(!defenseActive)}
-                  className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-sm transition-all border-2 shadow-xl ${
-                    defenseActive
-                    ? "bg-emerald-600 border-emerald-500 text-white"
-                    : "bg-rose-600 border-rose-500 text-white animate-pulse"
-                  }`}
-                >
-                  <Filter className="w-4 h-4" />
-                  <span>{defenseActive ? "Defended" : "Bypassed"}</span>
+              {/* RUN CONTROLS NATIVELY EMBEDDED BOTTOM-RIGHT */}
+              <div className="absolute bottom-10 right-10 z-50 flex items-center gap-6">
+                <button onClick={resetMitigation} disabled={mitStep === 0} className="w-20 h-20 bg-slate-800 border-2 border-slate-600 text-slate-400 rounded-3xl hover:bg-slate-700 hover:text-white transition-all shadow-2xl flex items-center justify-center disabled:opacity-30 disabled:hover:bg-slate-800">
+                  <RotateCcw className="w-8 h-8" />
+                </button>
+                <button onClick={runMitigationSim} disabled={mitStep !== 0} className="h-20 px-12 bg-emerald-600 text-white rounded-3xl font-black text-2xl hover:bg-emerald-500 transition-all shadow-[0_15px_40px_rgba(5,150,105,0.4)] flex items-center gap-4 disabled:opacity-30 disabled:shadow-none">
+                  <Play className="w-8 h-8 fill-current" /> Run Simulation
                 </button>
               </div>
 
             </div>
-
-            {/* Bottom Descriptions Grid */}
-            <div className="p-8 border-t border-slate-50 bg-slate-50/40">
-              <div className="max-w-4xl mx-auto text-center">
-                <h4 className="text-lg font-black text-slate-900 mb-2">
-                  {activeMitScen === 1 && "DDoS Scrubbing & Volumetric Filtering Center"}
-                  {activeMitScen === 2 && "Global Content Delivery Network (CDN) & Anycast Routing"}
-                  {activeMitScen === 3 && "Granular Endpoint Rate Limiting & Quota Management"}
-                  {activeMitScen === 4 && "Layer 7 Web Application Firewall (WAF) Deep Packet Inspection"}
-                  {activeMitScen === 5 && "Elastic Load Balancing & Autonomous Horizontal Scaling"}
-                  {activeMitScen === 6 && "Hardware Perimeter ACLs & IP Reputation / Geo-Blocking"}
-                </h4>
-                <p className="text-sm font-semibold text-slate-500 leading-relaxed">
-                  {activeMitScen === 1 && "ترافیکی قەبارە گەورە (Volumetric Flood) پێش ئەوەی بگاتە سێرڤەرەکان، بەناو خزمەتگوزاری پاککردنەوەدا دەڕوات تا ترافیکە گومانلێکراوەکە بە تەواوی فلتەر بکرێت."}
-                  {activeMitScen === 2 && "ترافیکەکە بەسەر چەندین نۆدی جیاوازی Anycast دا دابەش دەبێت، ئەمەش وا دەکات هێرشبەر نەتوانێت تەنها یەک سێرڤەر نیشانە بگرێت و بیکوژێنێتەوە."}
-                  {activeMitScen === 3 && "سنووردارکردنی ژمارەی داواکارییەکان لە چرکەیەدا بۆ هەر IP یان Sessionێک بۆ ڕێگریکردن لە هێرشی L7 HTTP Flood بەبێ بلۆککردنی مرۆڤ."}
-                  {activeMitScen === 4 && "شیکردنەوەی قووڵی هێدەر و ڕەفتاری پاکێتەکان لەسەر ئاستی ئەپڵیکەیشن (Layer 7) بۆ ڕەتکردنەوەی واژۆی بۆتەکان و قبوڵکردنی ترافیکی ئاسایی."}
-                  {activeMitScen === 5 && "دابەشکردنی ئۆتۆماتیکی فشارەکە بەسەر چەندین سێرڤەردا. هەرکاتێک ترافیک لەناکاو زیاد بێت، سێرڤەری نوێ (Instance) بە شێوەی ئۆتۆماتیکی هەڵدەبێت."}
-                  {activeMitScen === 6 && "ڕێساکانی فایەروۆڵ و ACL ڕاستەوخۆ پاکێتەکانی ئەو ناوچانە یان IPیانە فڕێ دەدەن کە ناوبانگیان خراپە، ئەمەش لەسەر دەروازەی چوونەژوورەوە ڕوودەدات."}
-                </p>
-              </div>
-            </div>
-
           </div>
+
+          {/* LARGE BOTTOM SCENARIO SELECTORS */}
+          <div className="flex flex-wrap gap-6 mt-8 justify-center pb-4">
+            {[
+              { id: 1, label: "Scrubbing Core" },
+              { id: 2, label: "Anycast Edge" },
+              { id: 3, label: "Rate Limit Quota" },
+              { id: 4, label: "WAF Proxy" },
+              { id: 5, label: "Elastic LB" },
+              { id: 6, label: "Hardware ACL" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => changeMitigationScen(tab.id)}
+                className={`px-10 py-5 rounded-[2rem] font-black text-lg transition-all border-[3px] shadow-lg ${
+                  activeMitScen === tab.id 
+                  ? "bg-slate-800 border-emerald-500 text-emerald-400 scale-105" 
+                  : "bg-white/80 border-slate-200 text-slate-600 hover:bg-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
         </main>
       )}
 
