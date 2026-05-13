@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import {
   Shield, Activity, Fingerprint, Network, Brain, Play, RotateCcw,
   CheckCircle, AlertTriangle, Server, MonitorSmartphone, Zap, Cloud,
-  Router, Layers, Globe, Cpu, Filter, XCircle, Check, Map
+  Router, Layers, Globe, Cpu, Filter, XCircle, Check, Map, Database, HardDrive
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -33,7 +33,7 @@ const SIGNATURES = [
 const AI_FEATURES = ["Packet Rate", "Request Interval", "Click Speed", "Session Pattern", "L7 Behavior"];
 
 export default function MasterDefenseSuite() {
-  const [activeTab, setActiveTab] = useState<"detection" | "mitigation">("detection");
+  const [activeTab, setActiveTab] = useState<"detection" | "mitigation" | "datasets">("detection");
 
   // Detection State
   const [activeScen, setActiveScen] = useState(1);
@@ -49,6 +49,11 @@ export default function MasterDefenseSuite() {
   const [activeMitScen, setActiveMitScen] = useState(1);
   const [mitStep, setMitStep] = useState(0);
   const [mitCounter, setMitCounter] = useState(0);
+
+  // Datasets State
+  const [activeDataset, setActiveDataset] = useState(1);
+  const [dataStep, setDataStep] = useState(0);
+  const [dataStats, setDataStats] = useState({ pps: 0, rows: 0, accuracy: 0 });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -73,11 +78,18 @@ export default function MasterDefenseSuite() {
     setMitCounter(0);
   };
 
-  const switchTab = (tab: "detection" | "mitigation") => {
+  const resetDatasets = () => {
+    clearSims();
+    setDataStep(0);
+    setDataStats({ pps: 0, rows: 0, accuracy: 0 });
+  };
+
+  const switchTab = (tab: "detection" | "mitigation" | "datasets") => {
     if (activeTab === tab) return;
     setActiveTab(tab);
     resetDetection();
     resetMitigation();
+    resetDatasets();
   };
 
   const changeDetectionScen = (id: number) => {
@@ -90,6 +102,12 @@ export default function MasterDefenseSuite() {
     if (mitStep > 0 && mitStep < 4) return;
     setActiveMitScen(id);
     resetMitigation();
+  };
+
+  const changeDatasetScen = (id: number) => {
+    if (dataStep > 0 && dataStep < 4) return;
+    setActiveDataset(id);
+    resetDatasets();
   };
 
   const runDetectionSim = () => {
@@ -127,6 +145,27 @@ export default function MasterDefenseSuite() {
     timerRef.current = setInterval(() => { c++; setMitCounter(c); if (c >= 10) { clearInterval(timerRef.current!); setMitStep(4); } }, 400);
   };
 
+  const runDatasetSim = () => {
+    if (dataStep !== 0) return;
+    let currentStep = 1;
+    setDataStep(1);
+    const nextStep = () => { currentStep++; if (currentStep <= 4) setDataStep(currentStep); };
+    setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
+    let c = 0;
+    timerRef.current = setInterval(() => { 
+        c++; 
+        setDataStats(prev => ({
+            pps: prev.pps + Math.floor(Math.random() * 8000) + 12000,
+            rows: prev.rows + Math.floor(Math.random() * 80) + 20,
+            accuracy: Math.min(99.8, prev.accuracy + Math.random() * 5 + 4)
+        }));
+        if (c >= 20) { 
+            clearInterval(timerRef.current!); 
+            setDataStep(4); 
+        } 
+    }, 250);
+  };
+
   const detStepsArr = ["Monitoring", "Extracting Signals", "Analyzing", "Decision"];
   const mitStepsArr = ["Idle Topology", "Traffic Flow Starts", "Defenses Engaging", "Mitigation Complete"];
 
@@ -141,15 +180,19 @@ export default function MasterDefenseSuite() {
         <p className="text-sm font-bold text-emerald-500 uppercase tracking-widest">Interactive Network Topology Simulation</p>
       </header>
 
-      {/* MASSIVE TAB SWITCHER - GUARANTEED NO OVERLAP */}
-      <div className="w-full flex justify-center items-center gap-8 my-12 mb-16 z-40 relative px-4">
-        <button onClick={() => switchTab("detection")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2rem] border-4 transition-all duration-300 w-[22rem] ${activeTab === "detection" ? "bg-blue-600 border-blue-500 text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
-          <Brain className="w-8 h-8" />
-          <span className="text-2xl tracking-tight">Detection Engine</span>
+      {/* MASSIVE 3-TAB SWITCHER - GUARANTEED NO OVERLAP */}
+      <div className="w-full flex justify-center items-center gap-6 my-12 mb-16 z-40 relative px-4">
+        <button onClick={() => switchTab("detection")} className={`flex items-center justify-center gap-4 px-8 py-5 rounded-[2rem] border-4 transition-all duration-300 flex-1 max-w-[22rem] ${activeTab === "detection" ? "bg-blue-600 border-blue-500 text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
+          <Brain className="w-8 h-8 flex-shrink-0" />
+          <span className="text-xl lg:text-2xl tracking-tight truncate">Detection Engine</span>
         </button>
-        <button onClick={() => switchTab("mitigation")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2rem] border-4 transition-all duration-300 w-[22rem] ${activeTab === "mitigation" ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_15px_40px_rgba(5,150,105,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
-          <Router className="w-8 h-8" />
-          <span className="text-2xl tracking-tight">Mitigation Lab</span>
+        <button onClick={() => switchTab("mitigation")} className={`flex items-center justify-center gap-4 px-8 py-5 rounded-[2rem] border-4 transition-all duration-300 flex-1 max-w-[22rem] ${activeTab === "mitigation" ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_15px_40px_rgba(5,150,105,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
+          <Router className="w-8 h-8 flex-shrink-0" />
+          <span className="text-xl lg:text-2xl tracking-tight truncate">Mitigation Lab</span>
+        </button>
+        <button onClick={() => switchTab("datasets")} className={`flex items-center justify-center gap-4 px-8 py-5 rounded-[2rem] border-4 transition-all duration-300 flex-1 max-w-[22rem] ${activeTab === "datasets" ? "bg-purple-600 border-purple-500 text-white shadow-[0_15px_40px_rgba(168,85,247,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
+          <Database className="w-8 h-8 flex-shrink-0" />
+          <span className="text-xl lg:text-2xl tracking-tight truncate">Dataset Replay</span>
         </button>
       </div>
 
@@ -519,6 +562,79 @@ export default function MasterDefenseSuite() {
             ))}
           </div>
 
+        </main>
+      )}
+
+      {/* --- TAB 3: DATASET REPLAY LAB --- */}
+      {activeTab === "datasets" && (
+        <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col z-10 relative animate-[fadeIn_0.4s_ease-out]">
+          <div className="bg-slate-900 rounded-[3.5rem] border-4 border-slate-800 shadow-[0_30px_80px_rgb(0,0,0,0.6)] flex-1 flex flex-col overflow-hidden relative min-h-[650px]">
+            
+            {/* Grid Background */}
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.1)_0%,transparent_70%)] pointer-events-none" />
+
+            {/* Dataset Selector (Top Inside Stage) */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-center bg-slate-900/80 backdrop-blur-md z-20">
+              <div className="flex flex-wrap gap-4 justify-center">
+                {[
+                  { id: 1, label: "CICIDS2017 - Friday DDoS Flow" },
+                  { id: 2, label: "CAIDA 2007 - Volumetric Trace" },
+                  { id: 3, label: "UNSW-NB15 - Behavioral Botnet" }
+                ].map(ds => (
+                  <button key={ds.id} onClick={() => changeDatasetScen(ds.id)} className={`px-6 py-3 rounded-2xl text-sm font-black transition-all border-2 ${activeDataset === ds.id ? "bg-purple-900/50 border-purple-500 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)] scale-105" : "border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-slate-300"}`}>
+                    {ds.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CISCO STAGE */}
+            <div className="flex-1 p-8 flex items-center justify-center relative z-10 overflow-hidden">
+              <div className="w-full max-w-5xl flex items-center justify-between px-16 scale-110">
+                
+                <div className="flex flex-col items-center gap-4">
+                  <div className={`w-36 h-36 rounded-[2rem] border-[6px] shadow-2xl flex items-center justify-center transition-all bg-slate-800 ${dataStep > 0 ? "border-purple-500 text-purple-400 shadow-[0_0_40px_rgba(168,85,247,0.4)]" : "border-slate-700 text-slate-600"}`}>
+                    <HardDrive className="w-16 h-16" />
+                  </div>
+                  <span className="font-mono font-black text-sm uppercase tracking-widest text-slate-300">Academic Log Injector</span>
+                </div>
+
+                <div className="flex-1 h-3 bg-slate-800 mx-10 relative flex items-center overflow-hidden rounded-full border border-slate-700">
+                  {dataStep > 0 && <div className="absolute inset-0 bg-purple-500/80 w-full animate-[slideRight_0.5s_linear_infinite]" />}
+                </div>
+
+                <div className={`w-64 h-64 rounded-[3rem] border-8 shadow-2xl flex flex-col items-center justify-center transition-all z-20 ${dataStep === 4 ? "bg-slate-900 border-blue-500 text-blue-400 shadow-[0_0_60px_rgba(59,130,246,0.4)] scale-110" : "bg-slate-800 border-slate-700 text-slate-600"}`}>
+                  <Brain className="w-20 h-20 mb-4" />
+                  <span className="font-mono font-black text-lg uppercase tracking-widest text-center">AI Decision<br/>Classifier</span>
+                </div>
+
+              </div>
+
+              {/* Dynamic Telemetry inside the stage at the top corner */}
+              <div className="absolute top-8 left-8 flex flex-col gap-4">
+                <div className="bg-slate-900/90 border-2 border-slate-700 p-6 rounded-3xl shadow-2xl backdrop-blur-xl">
+                  <h4 className="font-mono font-black text-slate-400 text-xs uppercase mb-4 tracking-widest">Live Telemetry</h4>
+                  <div className="flex flex-col gap-4 font-mono">
+                    <div className="flex justify-between gap-12"><span className="text-slate-500">Inject Rate:</span><span className="text-purple-400 font-bold">{dataStats.pps.toLocaleString()} pps</span></div>
+                    <div className="flex justify-between gap-12"><span className="text-slate-500">Rows Parsed:</span><span className="text-blue-400 font-bold">{dataStats.rows.toLocaleString()}</span></div>
+                    <div className="flex justify-between gap-12"><span className="text-slate-500">Accuracy:</span><span className="text-emerald-400 font-bold">{dataStats.accuracy.toFixed(2)}%</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* RUN CONTROLS NATIVELY EMBEDDED BOTTOM-RIGHT */}
+              <div className="absolute bottom-10 right-10 z-50 flex items-center gap-6">
+                <button onClick={resetDatasets} disabled={dataStep === 0} className="w-20 h-20 bg-slate-800 border-2 border-slate-600 text-slate-400 rounded-3xl hover:bg-slate-700 hover:text-white transition-all shadow-2xl flex items-center justify-center disabled:opacity-30 disabled:hover:bg-slate-800">
+                  <RotateCcw className="w-8 h-8" />
+                </button>
+                <button onClick={runDatasetSim} disabled={dataStep !== 0} className="h-20 px-12 bg-purple-600 text-white rounded-3xl font-black text-2xl hover:bg-purple-500 transition-all shadow-[0_15px_40px_rgba(168,85,247,0.4)] flex items-center gap-4 disabled:opacity-30 disabled:shadow-none">
+                  <Play className="w-8 h-8 fill-current" /> Replay Trace
+                </button>
+              </div>
+
+            </div>
+          </div>
         </main>
       )}
 
