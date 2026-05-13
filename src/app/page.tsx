@@ -168,15 +168,34 @@ export default function CyberSuites() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100 flex flex-col pb-12 overflow-x-hidden">
       
       {/* HEADER & TAB SWITCHER */}
-      <header className="pt-8 pb-6 px-6 text-center shrink-0 w-full max-w-[98%] mx-auto">
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-6">
+      <header className="pt-8 px-6 text-center shrink-0 w-full max-w-[98%] mx-auto">
+        <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-8">
           Cyber-Defense Simulation Suites
         </h1>
-        <div className="inline-flex bg-white p-1.5 rounded-full border border-slate-200 shadow-sm">
-          <button onClick={() => changeMainTab("detection")} className={`px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 ${mainTab === "detection" ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:text-slate-700"}`}>
+        
+        {/* Massive Tab Switcher */}
+        <div className="flex justify-center items-center gap-6 my-8 mb-12 z-30 relative">
+          <button 
+            onClick={() => changeMainTab("detection")} 
+            className={`flex items-center gap-3 px-12 py-5 rounded-[2rem] text-2xl font-black tracking-tight transition-all duration-300 ${
+              mainTab === "detection" 
+                ? "bg-blue-600 text-white shadow-[0_10px_30px_rgba(37,99,235,0.3)] scale-105" 
+                : "bg-white/80 text-slate-500 border-2 border-slate-200 hover:bg-slate-50 hover:text-slate-800"
+            }`}
+          >
+            <Shield className="w-8 h-8" />
             Detection Engine
           </button>
-          <button onClick={() => changeMainTab("mitigation")} className={`px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 ${mainTab === "mitigation" ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-slate-700"}`}>
+          
+          <button 
+            onClick={() => changeMainTab("mitigation")} 
+            className={`flex items-center gap-3 px-12 py-5 rounded-[2rem] text-2xl font-black tracking-tight transition-all duration-300 ${
+              mainTab === "mitigation" 
+                ? "bg-emerald-600 text-white shadow-[0_10px_30px_rgba(52,211,153,0.3)] scale-105" 
+                : "bg-white/80 text-slate-500 border-2 border-slate-200 hover:bg-slate-50 hover:text-slate-800"
+            }`}
+          >
+            <Server className="w-8 h-8" />
             Mitigation Lab
           </button>
         </div>
