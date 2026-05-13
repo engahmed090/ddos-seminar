@@ -41,7 +41,6 @@ export default function MasterDefenseSuite() {
   const [scanTime, setScanTime] = useState(0);
   const [chartData, setChartData] = useState(BASE_TRAFFIC);
   const [synCount, setSynCount] = useState(0);
-  const [flowLines, setFlowLines] = useState<{ id: number, type: "normal" | "attack", step: number }[]>([]);
   const [aiScores, setAiScores] = useState({ human: 95, bot: 5, conf: 40 });
   const [activeFeat, setActiveFeat] = useState(-1);
 
@@ -67,7 +66,6 @@ export default function MasterDefenseSuite() {
     setScanTime(0);
     setChartData(BASE_TRAFFIC);
     setSynCount(0);
-    setFlowLines([]);
     setAiScores({ human: 95, bot: 5, conf: 40 });
     setActiveFeat(-1);
   };
@@ -125,9 +123,19 @@ export default function MasterDefenseSuite() {
       let point = 12;
       timerRef.current = setInterval(() => { setChartData(prev => [...prev, SPIKE_TRAFFIC[point]]); point++; if (point >= 15) { clearInterval(timerRef.current!); setSimStep(4); } }, 600);
     } else if (activeScen === 3) {
-      setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
-      let count = 0, tick = 0;
-      timerRef.current = setInterval(() => { tick++; if (tick < 3) { setFlowLines(p => [...p, { id: tick, type: "normal", step: tick }]); } else { setFlowLines(p => [...p, { id: tick, type: "attack", step: tick }]); count += 124; setSynCount(count); } if (count > 500) { clearInterval(timerRef.current!); setSimStep(4); } }, 400);
+      setTimeout(nextStep, 1000); 
+      setTimeout(() => {
+        nextStep(); 
+        let count = 0;
+        timerRef.current = setInterval(() => { 
+            count += Math.floor(Math.random() * 800 + 400); 
+            setSynCount(count); 
+            if (count > 6000) { 
+                clearInterval(timerRef.current!); 
+                setSimStep(4); 
+            } 
+        }, 150);
+      }, 2000);
     } else if (activeScen === 4) {
       setTimeout(nextStep, 600); setTimeout(nextStep, 1800);
       let f = -1;
@@ -270,21 +278,31 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* Det Scen 3 */}
+              {/* Det Scen 3 (Dynamic 3-Way Handshake) */}
               {activeScen === 3 && (
                 <div className="w-full max-w-6xl flex items-center justify-between px-16 relative scale-110">
-                  <div className="flex flex-col items-center gap-6">
+                  <div className="flex flex-col items-center gap-6 z-20">
                     <div className="w-32 h-32 bg-slate-800 border-4 border-slate-600 rounded-3xl shadow-xl flex items-center justify-center"><MonitorSmartphone className="w-14 h-14 text-slate-400" /></div>
                     <span className="font-mono text-sm font-black text-slate-400 uppercase tracking-widest">Client</span>
                   </div>
-                  <div className="flex-1 h-80 relative mx-20">
-                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-56 h-56 rounded-[4rem] bg-slate-900 shadow-2xl transition-all z-30 border-[10px] ${simStep === 4 ? 'border-rose-500 scale-110 shadow-[0_0_60px_rgba(244,63,94,0.4)]' : 'border-slate-800'}`}>
-                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Half-Open</span>
-                      <span className={`text-7xl font-black font-mono ${simStep === 4 ? 'text-rose-500' : 'text-slate-100'}`}>{synCount}</span>
-                    </div>
+                  
+                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center z-10 rounded-full border border-slate-700 overflow-hidden">
+                     {simStep === 1 && <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-800 border border-blue-500 text-blue-400 text-[10px] font-mono font-bold rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-[slideRightFull_1s_linear_forwards] whitespace-nowrap">[SYN]</div>}
+                     {simStep === 2 && <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-800 border border-emerald-500 text-emerald-400 text-[10px] font-mono font-bold rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)] animate-[slideLeftFull_1s_linear_forwards] whitespace-nowrap">[SYN-ACK]</div>}
+                     {(simStep === 3 || simStep === 4) && (
+                         <>
+                             <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-500 text-[10px] font-mono font-bold rounded-full shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-[slideRightFull_0.3s_linear_infinite] whitespace-nowrap">[SYN]</div>
+                             <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-500 text-[10px] font-mono font-bold rounded-full shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-[slideRightFull_0.4s_linear_infinite] delay-75 whitespace-nowrap" style={{ marginTop: '-20px' }}>[SYN]</div>
+                             <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-500 text-[10px] font-mono font-bold rounded-full shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-[slideRightFull_0.2s_linear_infinite] delay-150 whitespace-nowrap" style={{ marginTop: '20px' }}>[SYN]</div>
+                         </>
+                     )}
                   </div>
-                  <div className="flex flex-col items-center gap-6">
-                    <div className={`w-32 h-32 rounded-3xl flex items-center justify-center border-4 ${simStep === 4 ? 'bg-rose-950 border-rose-500 shadow-[0_0_80px_rgba(244,63,94,0.6)]' : 'bg-slate-800 border-blue-500 shadow-xl'}`}><Server className={`w-14 h-14 ${simStep === 4 ? 'text-rose-500' : 'text-blue-500'}`} /></div>
+                  
+                  <div className="flex flex-col items-center gap-6 z-20">
+                    <div className={`w-40 h-40 rounded-3xl flex flex-col items-center justify-center border-4 relative transition-all duration-300 ${simStep >= 3 ? 'bg-rose-950/80 border-rose-500 shadow-[0_0_60px_rgba(244,63,94,0.6)] scale-110' : 'bg-slate-800 border-blue-500 shadow-xl'}`}>
+                      <Server className={`w-14 h-14 ${simStep >= 3 ? 'text-rose-500 animate-pulse mb-1' : 'text-blue-500 mb-0'}`} />
+                      {simStep >= 3 && <div className="text-[10px] text-rose-300 font-mono font-bold text-center leading-tight absolute bottom-4 animate-[fadeIn_0.2s_ease-out] w-full px-2">Conns: {synCount.toLocaleString()}<br/>(Resource Exhausted)</div>}
+                    </div>
                     <span className="font-mono text-sm font-black text-slate-400 uppercase tracking-widest">Server</span>
                   </div>
                 </div>
@@ -369,10 +387,10 @@ export default function MasterDefenseSuite() {
             {/* CISCO STAGE */}
             <div className="flex-1 p-8 flex items-center justify-center relative z-10 overflow-hidden">
               
-              {/* Mit Scen 1: Scrubbing */}
+              {/* Mit Scen 1: Scrubbing (Live IP Traffic Filtering) */}
               {activeMitScen === 1 && (
                 <div className="w-full max-w-6xl flex items-center justify-between px-10 scale-110">
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-4 z-20">
                     <div className={`w-32 h-32 rounded-2xl flex items-center justify-center border-4 bg-slate-800 shadow-2xl relative ${mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-500'}`}>
                       <Cloud className="w-16 h-16" />
                       {mitStep > 0 && <div className="absolute inset-0 rounded-xl bg-rose-500/20 animate-pulse" />}
@@ -380,46 +398,76 @@ export default function MasterDefenseSuite() {
                     <span className="font-mono font-bold text-slate-400 uppercase text-xs">Attacker Net</span>
                   </div>
 
-                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full">
-                    {mitStep > 0 && <div className="absolute inset-0 bg-rose-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
+                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full border border-slate-700 z-10">
+                    {mitStep > 0 && mitStep < 4 && (
+                        <>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightFull_1.5s_linear_infinite] whitespace-nowrap" style={{ marginTop: '-20px' }}>[IP: 185.220.101.5 - Payload: UDP Flood]</div>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-emerald-500 text-emerald-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightFull_2s_linear_infinite] whitespace-nowrap delay-300" style={{ marginTop: '20px' }}>[IP: 194.12.87.12 - Payload: GET /]</div>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightFull_1.2s_linear_infinite] whitespace-nowrap delay-700" style={{ marginTop: '0px' }}>[IP: 211.14.8.99 - Payload: UDP Flood]</div>
+                        </>
+                    )}
+                    {mitStep === 4 && (
+                        <>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightHalfAndDrop_1.5s_linear_infinite] whitespace-nowrap z-20" style={{ marginTop: '-20px' }}>[IP: 185.220.101.5]</div>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-emerald-500 text-emerald-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightFull_2s_linear_infinite] whitespace-nowrap delay-300 z-10" style={{ marginTop: '20px' }}>[IP: 194.12.87.12 - Payload: GET /]</div>
+                           <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-rose-500 text-rose-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightHalfAndDrop_1.2s_linear_infinite] whitespace-nowrap delay-700 z-20" style={{ marginTop: '0px' }}>[IP: 211.14.8.99]</div>
+                           <div className="absolute left-[45%] top-[25%] text-rose-500 text-xs font-black animate-[dropPulse_0.5s_linear_infinite] z-30">[DROPPED]</div>
+                        </>
+                    )}
                   </div>
 
                   <div className={`w-48 h-48 rounded-[2rem] flex flex-col items-center justify-center border-[6px] shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.3)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
                     <Layers className="w-16 h-16 mb-4" />
-                    <span className="font-mono font-bold text-xs uppercase tracking-widest">Scrubbing Center</span>
+                    <span className="font-mono font-bold text-xs uppercase tracking-widest text-center">Scrubbing<br/>Center</span>
                   </div>
 
-                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full">
-                    {mitStep === 4 && <div className="absolute inset-0 bg-emerald-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
+                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full border border-slate-700 z-10">
+                    {mitStep === 4 && (
+                        <div className="absolute top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-900 border border-emerald-500 text-emerald-400 text-[10px] font-mono font-bold rounded-full animate-[slideRightFull_2s_linear_infinite] whitespace-nowrap delay-300" style={{ marginTop: '0px' }}>[IP: 194.12.87.12 - Payload: GET /]</div>
+                    )}
                   </div>
 
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-4 z-20">
                     <div className={`w-32 h-32 rounded-2xl flex items-center justify-center border-4 shadow-2xl bg-slate-800 transition-all ${mitStep === 4 ? 'border-emerald-500 text-emerald-400' : 'border-slate-700 text-slate-600'}`}><Server className="w-16 h-16" /></div>
                     <span className="font-mono font-bold text-slate-400 uppercase text-xs">Core Switch</span>
                   </div>
                 </div>
               )}
 
-              {/* Mit Scen 2: Anycast */}
+              {/* Mit Scen 2: Anycast (Edge Polishing) */}
               {activeMitScen === 2 && (
-                <div className="w-full max-w-6xl flex flex-col items-center justify-center gap-16 scale-110">
-                  <div className="flex justify-around w-full px-32">
+                <div className="w-full max-w-6xl flex flex-col items-center justify-center gap-16 scale-110 relative">
+                  <div className="flex justify-around w-full px-32 relative z-30">
                     {[1,2,3].map((i) => (
-                      <div key={i} className={`w-20 h-20 rounded-2xl flex items-center justify-center border-4 bg-slate-800 transition-all ${mitStep > 0 ? 'border-rose-500 text-rose-500 animate-bounce' : 'border-slate-700 text-slate-600'}`}><Cloud className="w-10 h-10" /></div>
+                      <div key={i} className={`w-20 h-20 rounded-2xl flex items-center justify-center border-4 bg-slate-800 transition-all ${mitStep > 0 ? 'border-rose-500 text-rose-500 animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.4)]' : 'border-slate-700 text-slate-600'}`}><Cloud className="w-10 h-10" /></div>
                     ))}
                   </div>
 
+                  {mitStep > 0 && (
+                    <div className="absolute top-[80px] inset-x-0 h-32 pointer-events-none z-10 flex justify-center opacity-80">
+                      <div className="w-full max-w-3xl flex justify-between px-16 relative">
+                         {[1,2,3,4].map(b => (
+                           <div key={b} className="relative h-full w-0.5 bg-rose-500/20 overflow-visible flex flex-col items-center">
+                               <div className="absolute w-1 h-1/2 bg-gradient-to-b from-transparent to-rose-500 animate-[downBeam_0.8s_linear_infinite]" style={{ animationDelay: `${b * 0.15}s` }} />
+                               <div className="absolute top-1/2 -translate-y-1/2 bg-rose-950 border border-rose-500 text-rose-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded shadow-[0_0_10px_rgba(244,63,94,0.6)] whitespace-nowrap -ml-0 z-20">40 Gbps</div>
+                           </div>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between w-full px-12 relative z-20">
-                    <div className="absolute inset-x-20 top-1/2 h-2 bg-slate-800 -z-10" />
+                    <div className="absolute inset-x-20 top-1/2 h-2 bg-slate-800 -z-10 rounded-full" />
                     {[ "N1", "N2", "N3", "N4" ].map((node) => (
-                      <div key={node} className={`flex flex-col items-center justify-center w-36 h-36 rounded-3xl border-4 transition-all bg-slate-800 shadow-2xl ${mitStep === 4 ? 'border-emerald-500 text-emerald-400' : mitStep > 0 ? 'border-rose-500 text-rose-500' : 'border-slate-700 text-slate-600'}`}>
+                      <div key={node} className={`flex flex-col items-center justify-center w-36 h-36 rounded-3xl border-4 transition-all bg-slate-800 shadow-2xl relative ${mitStep === 4 ? 'border-emerald-500 text-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.4)] scale-110' : mitStep > 0 ? 'border-rose-500 text-rose-400 shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'border-slate-700 text-slate-600'}`}>
                         <Globe className="w-12 h-12 mb-2" />
                         <span className="font-mono font-black text-sm">{node} Anycast</span>
+                        {mitStep === 4 && <span className="absolute -bottom-6 font-mono font-bold text-[10px] bg-emerald-900/80 border border-emerald-500/50 px-2 py-1 rounded text-emerald-300 shadow-md whitespace-nowrap animate-[fadeIn_0.3s_ease-out]">Absorbing</span>}
                       </div>
                     ))}
                   </div>
 
-                  <div className={`flex items-center gap-6 px-12 py-6 rounded-[2rem] border-4 shadow-2xl transition-all ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400' : mitStep > 0 ? 'bg-slate-800 border-rose-500 text-rose-500' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                  <div className={`flex items-center gap-6 px-12 py-6 rounded-[2rem] border-4 shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400' : mitStep > 0 ? 'bg-slate-800 border-emerald-500/50 text-emerald-400/50' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
                     <Server className="w-12 h-12" />
                     <h4 className="font-mono font-black text-xl uppercase">Datacenter Origin</h4>
                   </div>
@@ -642,6 +690,11 @@ export default function MasterDefenseSuite() {
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scanBeam { 0%, 100% { top: 10%; } 50% { top: 90%; } }
         @keyframes slideRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        @keyframes slideRightFull { 0% { left: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: 90%; opacity: 0; } }
+        @keyframes slideLeftFull { 0% { right: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { right: 90%; opacity: 0; } }
+        @keyframes slideRightHalfAndDrop { 0% { left: 0%; opacity: 0; transform: scale(1); } 10% { opacity: 1; } 40% { left: 45%; opacity: 1; transform: scale(1); color: #F43F5E; } 50% { left: 48%; opacity: 0; transform: scale(1.5); } 100% { left: 50%; opacity: 0; } }
+        @keyframes dropPulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        @keyframes downBeam { 0% { top: -100%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes shake { 0%, 100% { transform: translateX(360px) translateY(-50%) rotate(0deg); } 25% { transform: translateX(350px) translateY(-50%) rotate(-4deg); } 50% { transform: translateX(370px) translateY(-50%) rotate(4deg); } 75% { transform: translateX(350px) translateY(-50%) rotate(-4deg); } }
       `}} />
