@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
   Shield, Activity, Fingerprint, Network, Brain, Play, RotateCcw,
   CheckCircle, AlertTriangle, Server, MonitorSmartphone, Zap, Cloud,
@@ -10,7 +10,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
-/* --- MOCK DATA FOR TAB 1 --- */
+/* --- MOCK DATA FOR DETECTION --- */
 const BASE_TRAFFIC = [
   { t: "0s", v: 32 }, { t: "1s", v: 35 }, { t: "2s", v: 31 }, { t: "3s", v: 36 },
   { t: "4s", v: 34 }, { t: "5s", v: 38 }, { t: "6s", v: 33 }, { t: "7s", v: 35 },
@@ -35,7 +35,7 @@ const AI_FEATURES = ["Packet Rate", "Request Interval", "Click Speed", "Session 
 export default function MasterDefenseSuite() {
   const [activeTab, setActiveTab] = useState<"detection" | "mitigation">("detection");
 
-  // --- TAB 1 STATES (Detection Engine) ---
+  // Detection State
   const [activeScen, setActiveScen] = useState(1);
   const [simStep, setSimStep] = useState(0); 
   const [scanTime, setScanTime] = useState(0);
@@ -45,14 +45,13 @@ export default function MasterDefenseSuite() {
   const [aiScores, setAiScores] = useState({ human: 95, bot: 5, conf: 40 });
   const [activeFeat, setActiveFeat] = useState(-1);
 
-  // --- TAB 2 STATES (Mitigation Lab) ---
+  // Mitigation State
   const [activeMitScen, setActiveMitScen] = useState(1);
   const [mitStep, setMitStep] = useState(0);
   const [mitCounter, setMitCounter] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Stop any active simulations
   const clearSims = () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
@@ -74,6 +73,13 @@ export default function MasterDefenseSuite() {
     setMitCounter(0);
   };
 
+  const switchTab = (tab: "detection" | "mitigation") => {
+    if (activeTab === tab) return;
+    setActiveTab(tab);
+    resetDetection();
+    resetMitigation();
+  };
+
   const changeDetectionScen = (id: number) => {
     if (simStep > 0 && simStep < 4) return;
     setActiveScen(id);
@@ -83,14 +89,6 @@ export default function MasterDefenseSuite() {
   const changeMitigationScen = (id: number) => {
     if (mitStep > 0 && mitStep < 4) return;
     setActiveMitScen(id);
-    resetMitigation();
-  };
-
-  const switchTab = (tab: "detection" | "mitigation") => {
-    if (activeTab === "detection" && simStep > 0 && simStep < 4) return;
-    if (activeTab === "mitigation" && mitStep > 0 && mitStep < 4) return;
-    setActiveTab(tab);
-    resetDetection();
     resetMitigation();
   };
 
@@ -133,22 +131,23 @@ export default function MasterDefenseSuite() {
   const mitStepsArr = ["Idle Topology", "Traffic Flow Starts", "Defenses Engaging", "Mitigation Complete"];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col pb-12 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col pb-12 overflow-x-hidden selection:bg-emerald-500/30">
+      
       {/* HEADER */}
-      <header className="pt-8 pb-4 px-6 text-center w-full mx-auto">
-        <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-2">
-          Master Cyber Defense Lab
+      <header className="pt-10 pb-4 px-6 text-center w-full mx-auto relative z-40">
+        <h1 className="text-5xl font-black text-white tracking-tight mb-3">
+          Cisco Packet Tracer Lab
         </h1>
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Interactive Network Topology Simulation</p>
+        <p className="text-sm font-bold text-emerald-500 uppercase tracking-widest">Interactive Network Topology Simulation</p>
       </header>
 
-      {/* MASSIVE TAB SWITCHER */}
-      <div className="w-full flex justify-center items-center gap-6 my-4 mb-12 z-30 relative px-4">
-        <button onClick={() => switchTab("detection")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2.5rem] border-4 transition-all duration-300 w-80 ${activeTab === "detection" ? "bg-blue-600 border-blue-600 text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] scale-105 font-black" : "bg-white/80 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold"}`}>
+      {/* MASSIVE TAB SWITCHER - GUARANTEED NO OVERLAP */}
+      <div className="w-full flex justify-center items-center gap-8 my-12 mb-16 z-40 relative px-4">
+        <button onClick={() => switchTab("detection")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2rem] border-4 transition-all duration-300 w-[22rem] ${activeTab === "detection" ? "bg-blue-600 border-blue-500 text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
           <Brain className="w-8 h-8" />
           <span className="text-2xl tracking-tight">Detection Engine</span>
         </button>
-        <button onClick={() => switchTab("mitigation")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2.5rem] border-4 transition-all duration-300 w-80 ${activeTab === "mitigation" ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_15px_40px_rgba(5,150,105,0.4)] scale-105 font-black" : "bg-white/80 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold"}`}>
+        <button onClick={() => switchTab("mitigation")} className={`flex items-center justify-center gap-4 px-12 py-5 rounded-[2rem] border-4 transition-all duration-300 w-[22rem] ${activeTab === "mitigation" ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_15px_40px_rgba(5,150,105,0.4)] scale-105 font-black" : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white font-bold"}`}>
           <Router className="w-8 h-8" />
           <span className="text-2xl tracking-tight">Mitigation Lab</span>
         </button>
@@ -156,45 +155,48 @@ export default function MasterDefenseSuite() {
 
       {/* --- TAB 1: DETECTION ENGINE --- */}
       {activeTab === "detection" && (
-        <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col animate-[fadeIn_0.4s_ease-out]">
-          <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl flex-1 flex flex-col overflow-hidden relative">
-            <div className="p-8 border-b border-slate-50 flex items-center justify-center bg-white/50 backdrop-blur-md z-20">
-              <div className="flex flex-wrap items-center justify-center w-full gap-4 text-base font-black tracking-wide">
+        <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col z-10 relative">
+          <div className="bg-slate-900 rounded-[3.5rem] border-4 border-slate-800 shadow-[0_30px_80px_rgb(0,0,0,0.6)] flex-1 flex flex-col overflow-hidden relative min-h-[650px]">
+            
+            {/* Grid Background */}
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
+
+            <div className="p-6 border-b border-slate-800 flex items-center justify-center bg-slate-900/80 backdrop-blur-md z-20">
+              <div className="flex flex-wrap items-center justify-center w-full gap-4 text-sm font-black tracking-widest uppercase text-blue-400">
                 {detStepsArr.map((s, i) => {
                   const isActive = simStep === i + 1;
                   const isPast = simStep > i + 1 || simStep === 4;
                   return (
                     <React.Fragment key={s}>
-                      <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-300 ${isActive ? "bg-blue-50 text-blue-700 border-2 border-blue-100 scale-110 shadow-sm" : isPast ? "text-slate-500" : "text-slate-300"}`}>
-                        {isPast ? <CheckCircle className="w-6 h-6" /> : isActive ? <Zap className="w-6 h-6 animate-pulse" /> : <div className="w-6 h-6 rounded-full border-4 border-current opacity-30" />}
-                        <span className="hidden md:inline">{s}</span>
+                      <div className={`px-5 py-2.5 rounded-xl transition-all duration-300 ${isActive ? "bg-blue-900/50 border border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] text-white scale-105" : isPast ? "text-blue-500" : "text-slate-600"}`}>
+                        {s}
                       </div>
-                      {i < 3 && <div className={`w-12 h-1.5 rounded-full ${isPast ? "bg-blue-200" : "bg-slate-100"}`} />}
+                      {i < 3 && <div className={`w-10 h-1 rounded-full ${isPast ? "bg-blue-800" : "bg-slate-800"}`} />}
                     </React.Fragment>
                   )
                 })}
               </div>
             </div>
             
-            <div className="flex-1 p-8 flex items-center justify-center relative min-h-[550px] bg-slate-50/50">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.03)_0%,transparent_70%)] pointer-events-none" />
+            <div className="flex-1 p-8 flex items-center justify-center relative z-10 overflow-hidden">
 
               {/* Det Scen 1 */}
               {activeScen === 1 && (
-                <div className="w-full max-w-5xl flex flex-col items-center relative z-10 scale-125">
+                <div className="w-full max-w-5xl flex flex-col items-center relative scale-125">
                   <div className="w-full h-72 relative flex items-center justify-center">
-                    <div className="absolute left-1/2 -translate-x-1/2 w-48 h-72 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[3rem] shadow-2xl z-20 flex flex-col items-center justify-center">
-                      <Fingerprint className={`w-20 h-20 transition-colors duration-500 ${simStep === 4 ? "text-red-500" : "text-blue-500"}`} />
+                    <div className="absolute left-1/2 -translate-x-1/2 w-48 h-72 bg-slate-800/95 backdrop-blur-xl border border-slate-600 rounded-[3rem] shadow-2xl z-20 flex flex-col items-center justify-center">
+                      <Fingerprint className={`w-20 h-20 transition-colors duration-500 ${simStep === 4 ? "text-rose-500" : "text-blue-500"}`} />
                       {simStep > 0 && simStep < 4 && <div className="absolute inset-x-8 top-8 h-2 bg-blue-400 blur-[2px] animate-[scanBeam_1.5s_ease-in-out_infinite]" />}
                     </div>
-                    <div className="absolute inset-x-0 h-1.5 bg-slate-200 border-t-2 border-dashed border-slate-300" />
+                    <div className="absolute inset-x-0 h-1.5 bg-slate-800 border-t-2 border-dashed border-slate-600" />
                     {SIGNATURES.map((pkt) => {
                       const progress = Math.max(0, scanTime - pkt.delay);
                       let xPos = progress * 240;
                       let status = (xPos > 480 && !pkt.bad) ? "passed" : (pkt.bad && xPos >= 360) ? (simStep === 4 ? "caught" : "scanning") : "approaching";
                       if (pkt.bad && xPos >= 360) xPos = 360;
                       return (
-                        <div key={pkt.id} className={`absolute left-0 w-24 h-32 rounded-[2rem] border-4 flex items-center justify-center font-mono text-xl font-black transition-all duration-300 ease-linear shadow-md ${status === "caught" ? "bg-red-50 border-red-300 text-red-600 scale-110 z-30 shadow-red-100 animate-[shake_0.5s_ease-in-out]" : status === "scanning" ? "bg-white border-blue-300 text-blue-500 z-30 scale-105" : status === "passed" ? "bg-white border-emerald-200 text-emerald-400 opacity-0" : "bg-white border-slate-200 text-slate-400 z-10"}`} style={{ transform: `translateX(${xPos}px) translateY(-50%)`, top: '50%' }}>{pkt.type}</div>
+                        <div key={pkt.id} className={`absolute left-0 w-24 h-32 rounded-[2rem] border-4 flex items-center justify-center font-mono text-xl font-black transition-all duration-300 ease-linear shadow-md ${status === "caught" ? "bg-rose-900 border-rose-500 text-rose-300 scale-110 z-30 shadow-[0_0_30px_rgba(244,63,94,0.4)] animate-[shake_0.5s_ease-in-out]" : status === "scanning" ? "bg-slate-800 border-blue-500 text-blue-400 z-30 scale-105" : status === "passed" ? "bg-slate-800 border-emerald-500 text-emerald-400 opacity-0" : "bg-slate-800 border-slate-600 text-slate-400 z-10"}`} style={{ transform: `translateX(${xPos}px) translateY(-50%)`, top: '50%' }}>{pkt.type}</div>
                       )
                     })}
                   </div>
@@ -203,93 +205,94 @@ export default function MasterDefenseSuite() {
 
               {/* Det Scen 2 */}
               {activeScen === 2 && (
-                <div className="w-full max-w-6xl h-full flex flex-col justify-center relative z-10 scale-110">
-                  <div className="h-[450px] w-full relative bg-white/90 p-8 rounded-[4rem] border border-slate-100 shadow-2xl">
+                <div className="w-full max-w-6xl h-full flex flex-col justify-center relative scale-110">
+                  <div className="h-[450px] w-full relative bg-slate-900 p-8 rounded-[4rem] border border-slate-700 shadow-2xl">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData} margin={{ top: 30, right: 0, left: 0, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="normalGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3B82F6" stopOpacity={0.3}/><stop offset="100%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient>
-                          <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EF4444" stopOpacity={0.6}/><stop offset="100%" stopColor="#EF4444" stopOpacity={0}/></linearGradient>
+                          <linearGradient id="normalGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3B82F6" stopOpacity={0.4}/><stop offset="100%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient>
+                          <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#F43F5E" stopOpacity={0.6}/><stop offset="100%" stopColor="#F43F5E" stopOpacity={0}/></linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#E2E8F0" />
+                        <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#334155" />
                         <XAxis dataKey="t" hide />
                         <YAxis stroke="#94A3B8" fontSize={16} fontWeight="bold" tickLine={false} axisLine={false} />
                         {/* @ts-ignore */}
-                        <Tooltip contentStyle={{ borderRadius: '25px', border: 'none', boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.15)', padding: '20px' }} />
-                        <ReferenceLine y={70} stroke="#EF4444" strokeDasharray="8 8" strokeWidth={3} />
-                        <Area type="monotone" dataKey="v" stroke={simStep === 4 ? "#EF4444" : "#3B82F6"} strokeWidth={6} fill={simStep === 4 ? "url(#dangerGrad)" : "url(#normalGrad)"} />
+                        <Tooltip contentStyle={{ borderRadius: '25px', backgroundColor: '#1e293b', border: '1px solid #475569', boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.5)', padding: '20px', color: '#f8fafc' }} />
+                        <ReferenceLine y={70} stroke="#F43F5E" strokeDasharray="8 8" strokeWidth={3} />
+                        <Area type="monotone" dataKey="v" stroke={simStep === 4 ? "#F43F5E" : "#3B82F6"} strokeWidth={6} fill={simStep === 4 ? "url(#dangerGrad)" : "url(#normalGrad)"} />
                       </AreaChart>
                     </ResponsiveContainer>
-                    <div className="absolute top-12 left-12 text-xs font-black text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">Safe Threshold</div>
+                    <div className="absolute top-12 left-12 text-xs font-black text-rose-400 bg-rose-950/50 px-4 py-2 rounded-lg border border-rose-800">Safe Threshold</div>
                   </div>
                 </div>
               )}
 
               {/* Det Scen 3 */}
               {activeScen === 3 && (
-                <div className="w-full max-w-6xl flex items-center justify-between px-16 relative z-10 scale-110">
-                  <div className="flex flex-col items-center gap-8">
-                    <div className="w-36 h-36 bg-white border-2 border-slate-100 rounded-[3rem] shadow-xl flex items-center justify-center"><MonitorSmartphone className="w-16 h-16 text-slate-400" /></div>
-                    <span className="text-lg font-black text-slate-400 uppercase tracking-widest bg-white px-6 py-2 rounded-full border border-slate-100">Client</span>
+                <div className="w-full max-w-6xl flex items-center justify-between px-16 relative scale-110">
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="w-32 h-32 bg-slate-800 border-4 border-slate-600 rounded-3xl shadow-xl flex items-center justify-center"><MonitorSmartphone className="w-14 h-14 text-slate-400" /></div>
+                    <span className="font-mono text-sm font-black text-slate-400 uppercase tracking-widest">Client</span>
                   </div>
                   <div className="flex-1 h-80 relative mx-20">
-                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-56 h-56 rounded-[4rem] bg-white/95 backdrop-blur-2xl shadow-2xl transition-all z-30 border-[10px] ${simStep === 4 ? 'border-red-100 scale-110' : 'border-slate-50'}`}>
-                      <span className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">Half-Open</span>
-                      <span className={`text-7xl font-black font-mono ${simStep === 4 ? 'text-red-500' : 'text-slate-800'}`}>{synCount}</span>
+                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-56 h-56 rounded-[4rem] bg-slate-900 shadow-2xl transition-all z-30 border-[10px] ${simStep === 4 ? 'border-rose-500 scale-110 shadow-[0_0_60px_rgba(244,63,94,0.4)]' : 'border-slate-800'}`}>
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Half-Open</span>
+                      <span className={`text-7xl font-black font-mono ${simStep === 4 ? 'text-rose-500' : 'text-slate-100'}`}>{synCount}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col items-center gap-8">
-                    <div className={`w-36 h-36 rounded-[3rem] flex items-center justify-center border-4 ${simStep === 4 ? 'bg-red-50 border-red-200 shadow-[0_0_80px_rgba(239,68,68,0.4)]' : 'bg-blue-50 border-blue-100 shadow-xl'}`}><Server className={`w-16 h-16 ${simStep === 4 ? 'text-red-500' : 'text-blue-600'}`} /></div>
-                    <span className="text-lg font-black text-slate-400 uppercase tracking-widest bg-white px-6 py-2 rounded-full border border-slate-100">Server</span>
+                  <div className="flex flex-col items-center gap-6">
+                    <div className={`w-32 h-32 rounded-3xl flex items-center justify-center border-4 ${simStep === 4 ? 'bg-rose-950 border-rose-500 shadow-[0_0_80px_rgba(244,63,94,0.6)]' : 'bg-slate-800 border-blue-500 shadow-xl'}`}><Server className={`w-14 h-14 ${simStep === 4 ? 'text-rose-500' : 'text-blue-500'}`} /></div>
+                    <span className="font-mono text-sm font-black text-slate-400 uppercase tracking-widest">Server</span>
                   </div>
                 </div>
               )}
 
               {/* Det Scen 4 */}
               {activeScen === 4 && (
-                <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center gap-24 relative z-10 scale-105">
-                  <div className="flex flex-col gap-6 w-80">
+                <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center gap-24 relative scale-105">
+                  <div className="flex flex-col gap-5 w-80">
                     {AI_FEATURES.map((feat, i) => (
-                      <div key={feat} className={`text-sm font-black uppercase tracking-widest px-8 py-5 rounded-[2rem] border-4 transition-all flex items-center gap-5 ${activeFeat === i ? "bg-white border-blue-400 text-blue-600 shadow-2xl scale-110" : activeFeat > i ? "bg-slate-50 border-slate-100 text-slate-400" : "bg-transparent border-transparent text-slate-300"}`}>{feat}</div>
+                      <div key={feat} className={`text-sm font-black uppercase tracking-widest px-8 py-4 rounded-2xl border-4 transition-all flex items-center gap-5 ${activeFeat === i ? "bg-slate-800 border-blue-500 text-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.3)] scale-110" : activeFeat > i ? "bg-slate-900 border-slate-700 text-slate-500" : "bg-transparent border-slate-800 text-slate-600"}`}>{feat}</div>
                     ))}
                   </div>
-                  <div className={`w-80 h-80 rounded-[4.5rem] border-[12px] bg-white/95 backdrop-blur-3xl flex flex-col items-center justify-center shadow-2xl transition-all ${simStep === 4 ? 'border-red-100 scale-110' : 'border-blue-50'}`}>
-                    <Brain className={`w-28 h-28 mb-6 ${simStep === 4 ? 'text-red-500' : 'text-blue-600'}`} />
-                    <span className="text-lg font-black text-slate-400 tracking-widest uppercase">AI Engine</span>
+                  <div className={`w-80 h-80 rounded-[4rem] border-[10px] bg-slate-900 flex flex-col items-center justify-center shadow-2xl transition-all ${simStep === 4 ? 'border-rose-500 scale-110 shadow-[0_0_60px_rgba(244,63,94,0.4)]' : 'border-blue-900'}`}>
+                    <Brain className={`w-28 h-28 mb-6 ${simStep === 4 ? 'text-rose-500' : 'text-blue-500'}`} />
+                    <span className="text-lg font-black text-slate-500 tracking-widest uppercase">AI Engine</span>
                   </div>
-                  <div className="w-96 flex flex-col gap-10 bg-white/80 p-12 rounded-[3.5rem] border border-slate-100 shadow-2xl">
-                    {[{label: "Human Prob", val: aiScores.human, color: "bg-emerald-400"}, {label: "Bot Prob", val: aiScores.bot, color: "bg-red-400"}, {label: "AI Confidence", val: aiScores.conf, color: "bg-blue-500"}].map((bar) => (
+                  <div className="w-96 flex flex-col gap-10 bg-slate-800 p-10 rounded-[3rem] border-4 border-slate-700 shadow-2xl">
+                    {[{label: "Human Prob", val: aiScores.human, color: "bg-emerald-500"}, {label: "Bot Prob", val: aiScores.bot, color: "bg-rose-500"}, {label: "AI Confidence", val: aiScores.conf, color: "bg-blue-500"}].map((bar) => (
                       <div key={bar.label}>
-                        <div className="flex justify-between text-sm font-black uppercase tracking-widest mb-4"><span className="text-slate-400">{bar.label}</span><span className="text-slate-800">{bar.val}%</span></div>
-                        <div className="h-5 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${bar.color} transition-all`} style={{ width: `${bar.val}%` }} /></div>
+                        <div className="flex justify-between text-xs font-black uppercase tracking-widest mb-3"><span className="text-slate-400">{bar.label}</span><span className="text-white">{bar.val}%</span></div>
+                        <div className="h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-700"><div className={`h-full ${bar.color} transition-all`} style={{ width: `${bar.val}%` }} /></div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* ACTION BUTTONS */}
-              <div className="absolute bottom-12 right-12 z-50 flex items-center gap-6">
-                <button onClick={resetDetection} disabled={simStep === 0} className="w-20 h-20 bg-white text-slate-600 border-2 border-slate-200 rounded-[2rem] hover:bg-slate-50 shadow-xl flex items-center justify-center disabled:opacity-30">
-                  <RotateCcw className="w-10 h-10" />
+              {/* RUN CONTROLS NATIVELY EMBEDDED BOTTOM-RIGHT */}
+              <div className="absolute bottom-10 right-10 z-50 flex items-center gap-6">
+                <button onClick={resetDetection} disabled={simStep === 0} className="w-20 h-20 bg-slate-800 border-2 border-slate-600 text-slate-400 rounded-3xl hover:bg-slate-700 hover:text-white transition-all shadow-2xl flex items-center justify-center disabled:opacity-30 disabled:hover:bg-slate-800">
+                  <RotateCcw className="w-8 h-8" />
                 </button>
-                <button onClick={runDetectionSim} disabled={simStep !== 0} className="h-20 px-12 bg-blue-600 text-white rounded-[2rem] font-black text-2xl hover:bg-blue-700 hover:scale-105 transition-all shadow-[0_20px_50px_rgba(37,99,235,0.4)] flex items-center gap-4 disabled:opacity-30 disabled:scale-100 disabled:shadow-none">
-                  <Play className="w-8 h-8 fill-current" /> Run Detection
+                <button onClick={runDetectionSim} disabled={simStep !== 0} className="h-20 px-12 bg-blue-600 text-white rounded-3xl font-black text-2xl hover:bg-blue-500 transition-all shadow-[0_15px_40px_rgba(37,99,235,0.4)] flex items-center gap-4 disabled:opacity-30 disabled:shadow-none">
+                  <Play className="w-8 h-8 fill-current" /> Run Simulation
                 </button>
               </div>
+
             </div>
           </div>
 
-          <div className="flex gap-6 mt-8 overflow-x-auto pb-4 justify-center">
+          {/* LARGE BOTTOM SCENARIO SELECTORS */}
+          <div className="flex flex-wrap gap-6 mt-8 justify-center pb-4 z-40 relative">
             {[
-              {id: 1, title: "Signature", icon: Fingerprint},
-              {id: 2, title: "Anomaly", icon: Activity},
-              {id: 3, title: "Protocol", icon: Network},
-              {id: 4, title: "AI Core", icon: Brain}
+              {id: 1, title: "Signature Filter"},
+              {id: 2, title: "Anomaly Chart"},
+              {id: 3, title: "Protocol State"},
+              {id: 4, title: "AI/ML Behavior"}
             ].map(scen => (
-              <button key={scen.id} onClick={() => changeDetectionScen(scen.id)} className={`flex-1 min-w-[250px] p-8 rounded-[3rem] border-4 transition-all duration-300 ${activeScen === scen.id ? 'bg-white border-blue-400 shadow-xl ring-8 ring-blue-50 scale-105 text-slate-900' : 'bg-white/60 border-slate-100 text-slate-500 hover:bg-white'}`}>
-                <div className={`w-16 h-16 rounded-[2rem] flex items-center justify-center mb-6 mx-auto ${activeScen === scen.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}><scen.icon className="w-8 h-8" /></div>
-                <h3 className="font-black text-xl text-center">{scen.title}</h3>
+              <button key={scen.id} onClick={() => changeDetectionScen(scen.id)} className={`px-10 py-5 rounded-[2rem] font-black text-lg transition-all border-[3px] shadow-lg ${activeScen === scen.id ? 'bg-slate-800 border-blue-500 text-blue-400 scale-105' : 'bg-slate-900 border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}>
+                {scen.title}
               </button>
             ))}
           </div>
@@ -298,23 +301,23 @@ export default function MasterDefenseSuite() {
 
       {/* --- TAB 2: MITIGATION LAB (PURE CISCO PACKET TRACER THEME) --- */}
       {activeTab === "mitigation" && (
-        <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col animate-[fadeIn_0.4s_ease-out]">
+        <main className="flex-1 w-full max-w-[98%] mx-auto px-4 flex flex-col z-10 relative animate-[fadeIn_0.4s_ease-out]">
           
-          <div className="bg-slate-900 rounded-[3.5rem] border-8 border-slate-800 shadow-[0_30px_60px_rgb(0,0,0,0.5)] flex-1 flex flex-col overflow-hidden relative min-h-[700px]">
+          <div className="bg-slate-900 rounded-[3.5rem] border-4 border-slate-800 shadow-[0_30px_80px_rgb(0,0,0,0.6)] flex-1 flex flex-col overflow-hidden relative min-h-[650px]">
             
             {/* Grid Background */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.05)_0%,transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.1)_0%,transparent_70%)] pointer-events-none" />
 
             {/* Top Indicator */}
             <div className="p-6 border-b border-slate-800 flex items-center justify-center bg-slate-900/80 backdrop-blur-md z-20">
               <div className="flex flex-wrap items-center justify-center w-full gap-4 text-sm font-black tracking-widest uppercase text-emerald-400">
                 {mitStepsArr.map((s, i) => (
                   <React.Fragment key={s}>
-                    <div className={`px-4 py-2 rounded-xl transition-all ${mitStep === i + 1 ? "bg-emerald-900/50 border border-emerald-500 shadow-[0_0_15px_rgba(52,211,153,0.3)] text-white" : mitStep > i + 1 || mitStep === 4 ? "text-emerald-500" : "text-slate-600"}`}>
+                    <div className={`px-5 py-2.5 rounded-xl transition-all duration-300 ${mitStep === i + 1 ? "bg-emerald-900/50 border border-emerald-500 shadow-[0_0_15px_rgba(52,211,153,0.3)] text-white scale-105" : mitStep > i + 1 || mitStep === 4 ? "text-emerald-500" : "text-slate-600"}`}>
                       {s}
                     </div>
-                    {i < 3 && <div className="w-8 h-1 rounded-full bg-slate-800" />}
+                    {i < 3 && <div className="w-10 h-1 rounded-full bg-slate-800" />}
                   </React.Fragment>
                 ))}
               </div>
@@ -334,16 +337,16 @@ export default function MasterDefenseSuite() {
                     <span className="font-mono font-bold text-slate-400 uppercase text-xs">Attacker Net</span>
                   </div>
 
-                  <div className="flex-1 h-2 bg-slate-800 mx-8 relative flex items-center overflow-hidden">
+                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full">
                     {mitStep > 0 && <div className="absolute inset-0 bg-rose-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
                   </div>
 
-                  <div className={`w-48 h-48 rounded-[2rem] flex flex-col items-center justify-center border-[6px] shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.2)]' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                  <div className={`w-48 h-48 rounded-[2rem] flex flex-col items-center justify-center border-[6px] shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.3)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
                     <Layers className="w-16 h-16 mb-4" />
-                    <span className="font-mono font-bold text-xs">Scrubbing Center</span>
+                    <span className="font-mono font-bold text-xs uppercase tracking-widest">Scrubbing Center</span>
                   </div>
 
-                  <div className="flex-1 h-2 bg-slate-800 mx-8 relative flex items-center overflow-hidden">
+                  <div className="flex-1 h-3 bg-slate-800 mx-8 relative flex items-center overflow-hidden rounded-full">
                     {mitStep === 4 && <div className="absolute inset-0 bg-emerald-500/80 w-full animate-[slideRight_1s_linear_infinite]" />}
                   </div>
 
@@ -375,7 +378,7 @@ export default function MasterDefenseSuite() {
 
                   <div className={`flex items-center gap-6 px-12 py-6 rounded-[2rem] border-4 shadow-2xl transition-all ${mitStep === 4 ? 'bg-slate-800 border-emerald-500 text-emerald-400' : mitStep > 0 ? 'bg-slate-800 border-rose-500 text-rose-500' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
                     <Server className="w-12 h-12" />
-                    <h4 className="font-mono font-black text-xl">Datacenter Origin</h4>
+                    <h4 className="font-mono font-black text-xl uppercase">Datacenter Origin</h4>
                   </div>
                 </div>
               )}
@@ -423,7 +426,7 @@ export default function MasterDefenseSuite() {
                     ))}
                   </div>
 
-                  <div className={`w-72 h-72 rounded-3xl border-8 flex flex-col items-center justify-center shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-blue-500 text-blue-400 shadow-[0_0_50px_rgba(59,130,246,0.3)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                  <div className={`w-72 h-72 rounded-[3rem] border-8 flex flex-col items-center justify-center shadow-2xl transition-all z-20 ${mitStep === 4 ? 'bg-slate-800 border-blue-500 text-blue-400 shadow-[0_0_60px_rgba(59,130,246,0.4)] scale-110' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
                     <Shield className="w-24 h-24 mb-4" />
                     <span className="font-mono font-black text-xl uppercase tracking-widest">L7 WAF</span>
                   </div>
@@ -438,9 +441,9 @@ export default function MasterDefenseSuite() {
               {/* Mit Scen 5: Auto-Scaling */}
               {activeMitScen === 5 && (
                 <div className="w-full max-w-6xl flex items-center justify-between px-16 scale-110">
-                  <div className="w-36 h-36 rounded-full border-[6px] border-slate-700 bg-slate-800 flex flex-col items-center justify-center shadow-2xl text-slate-500">
-                    <Router className="w-12 h-12 mb-2" />
-                    <span className="font-mono font-black text-xs uppercase">LB Core</span>
+                  <div className="w-40 h-40 rounded-full border-8 border-slate-700 bg-slate-800 flex flex-col items-center justify-center shadow-2xl text-slate-500">
+                    <Router className="w-14 h-14 mb-2" />
+                    <span className="font-mono font-black text-sm uppercase">LB Core</span>
                   </div>
 
                   <div className="flex-1 flex flex-col gap-8 items-center justify-center mx-16">
@@ -448,7 +451,7 @@ export default function MasterDefenseSuite() {
                       {[1, 2, 3, 4].map((srv) => {
                         const isVisible = srv <= 2 || mitStep === 4;
                         return (
-                          <div key={srv} className={`flex flex-col items-center justify-center w-36 h-40 rounded-3xl border-[4px] transition-all duration-500 ${isVisible ? 'bg-slate-800 border-emerald-500 shadow-2xl text-emerald-400' : 'border-dashed border-slate-700 bg-slate-900/50 text-slate-700 opacity-30 scale-90'}`}>
+                          <div key={srv} className={`flex flex-col items-center justify-center w-36 h-40 rounded-3xl border-4 transition-all duration-500 ${isVisible ? 'bg-slate-800 border-emerald-500 shadow-2xl text-emerald-400 scale-100' : 'border-dashed border-slate-700 bg-slate-900/50 text-slate-700 opacity-40 scale-90'}`}>
                             <Server className="w-12 h-12 mb-3" />
                             <span className="font-mono font-black text-sm">INST {srv}</span>
                           </div>
@@ -492,8 +495,8 @@ export default function MasterDefenseSuite() {
             </div>
           </div>
 
-          {/* LARGE BOTTOM SCENARIO SELECTORS */}
-          <div className="flex flex-wrap gap-6 mt-8 justify-center pb-4">
+          {/* LARGE BOTTOM SCENARIO SELECTORS - ZERO DESCRIPTIVE TEXT */}
+          <div className="flex flex-wrap gap-6 mt-8 justify-center pb-4 z-40 relative">
             {[
               { id: 1, label: "Scrubbing Core" },
               { id: 2, label: "Anycast Edge" },
@@ -508,7 +511,7 @@ export default function MasterDefenseSuite() {
                 className={`px-10 py-5 rounded-[2rem] font-black text-lg transition-all border-[3px] shadow-lg ${
                   activeMitScen === tab.id 
                   ? "bg-slate-800 border-emerald-500 text-emerald-400 scale-105" 
-                  : "bg-white/80 border-slate-200 text-slate-600 hover:bg-white"
+                  : "bg-slate-900 border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
                 }`}
               >
                 {tab.label}
