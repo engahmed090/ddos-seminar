@@ -1,333 +1,595 @@
 "use client";
-import { useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
-import { Shield, Brain, Activity, Search, AlertTriangle, CheckCircle, Play, Zap, Eye, Wifi, RotateCcw } from "lucide-react";
 
-type Sim = "idle"|"analyzing"|"complete";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Shield,
+  Activity,
+  Fingerprint,
+  Network,
+  Brain,
+  Play,
+  RotateCcw,
+  CheckCircle,
+  AlertTriangle,
+  Server,
+  MonitorSmartphone,
+  Bot,
+  Zap,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 
-const NORMAL = Array.from({length:20},(_,i)=>({t:`T${i}`,v:+(25+Math.sin(i*.6)*7+Math.random()*3).toFixed(1)}));
-const SPIKE  = [...NORMAL.slice(0,14),{t:"T14",v:72},{t:"T15",v:98},{t:"T16",v:115},{t:"T17",v:108},{t:"T18",v:120},{t:"T19",v:116}];
-const PKTS   = [{l:"SYN",bad:true},{l:"GET",bad:false},{l:"SYN",bad:true},{l:"ACK",bad:false},{l:"UDP",bad:false},{l:"RST",bad:true},{l:"PSH",bad:false},{l:"SYN",bad:true}];
-const FEATS  = ["Packet Size","Request Rate","IP Reputation","Click Speed","Nav Pattern","Session Time","URL Repeat","User-Agent","Endpoint"];
+/* --- DETERMINISTIC MOCK DATA --- */
+const BASE_TRAFFIC = [
+  { t: "0s", v: 32 }, { t: "1s", v: 35 }, { t: "2s", v: 31 }, { t: "3s", v: 36 },
+  { t: "4s", v: 34 }, { t: "5s", v: 38 }, { t: "6s", v: 33 }, { t: "7s", v: 35 },
+  { t: "8s", v: 32 }, { t: "9s", v: 36 }, { t: "10s", v: 34 }, { t: "11s", v: 37 },
+];
+const SPIKE_TRAFFIC = [
+  ...BASE_TRAFFIC,
+  { t: "12s", v: 85 }, { t: "13s", v: 125 }, { t: "14s", v: 140 }, { t: "15s", v: 135 },
+  { t: "16s", v: 110 }, { t: "17s", v: 95 }, { t: "18s", v: 45 }, { t: "19s", v: 35 },
+];
 
-const SC = [
-  {id:1,icon:<Search className="w-4 h-4"/>,label:"Signature-Based",color:"blue",mode:"Pattern Matching",result:"Attack Identified",risk:"High",conf:"97%",
-   why:"3 packets matched known SYN-Flood signatures. Source IPs found on global blocklist. Payload matched template #AF-2291.",
-   b:"Detection works like fingerprint matching — if traffic matches a known bad pattern, it gets blocked.",
-   a:"Relies on predefined signatures. Efficient for known attacks but limited against zero-day threats."},
-  {id:2,icon:<Activity className="w-4 h-4"/>,label:"Anomaly-Based",color:"violet",mode:"Statistical Baseline",result:"Anomaly Detected",risk:"Medium",conf:"91%",
-   why:"Traffic exceeded threshold by 82%. Inter-arrival time dropped 94%. Deviation score crossed 4.2σ.",
-   b:"The system learns normal traffic. A sudden spike triggers a suspicious alert.",
-   a:"Models normal behaviour and flags statistical deviations. Useful for unknown or evolving attacks."},
-  {id:3,icon:<Wifi className="w-4 h-4"/>,label:"Protocol Analysis",color:"amber",mode:"TCP State Inspection",result:"Protocol Abuse",risk:"High",conf:"99%",
-   why:"847 half-open TCP connections in 3 seconds. 99.4% of SYN requests received no ACK — SYN Flood confirmed.",
-   b:"If many connections start but never finish, the system detects something is wrong.",
-   a:"Detects deviations from TCP protocol semantics. Half-open connections indicate SYN Flood exhaustion."},
-  {id:4,icon:<Brain className="w-4 h-4"/>,label:"AI / ML",color:"purple",mode:"Behavioural AI",result:"Bot DDoS Detected",risk:"Critical",conf:"99.7%",
-   why:"Random Forest: 97.3% flows malicious. Bot probability 0.973. Same URL repeated 12,400× in 30 seconds.",
-   b:"AI studies behaviour — if requests look like a bot, it detects it without needing a known signature.",
-   a:"ML models classify flows using extracted features. Effective against zero-day and Layer-7 attacks."},
-] as const;
+const SIGNATURES = [
+  { id: 1, type: "GET", bad: false, delay: 0 },
+  { id: 2, type: "SYN", bad: false, delay: 1 },
+  { id: 3, type: "POST", bad: false, delay: 2 },
+  { id: 4, type: "SYN", bad: true, delay: 3 }, // Malicious
+  { id: 5, type: "ACK", bad: false, delay: 4 },
+];
 
-const CLR: Record<string,{bg:string,text:string,border:string}> = {
-  blue:   {bg:"bg-blue-50",   text:"text-blue-700",   border:"border-blue-200"},
-  violet: {bg:"bg-violet-50", text:"text-violet-700", border:"border-violet-200"},
-  amber:  {bg:"bg-amber-50",  text:"text-amber-700",  border:"border-amber-200"},
-  purple: {bg:"bg-purple-50", text:"text-purple-700", border:"border-purple-200"},
-  rose:   {bg:"bg-rose-50",   text:"text-rose-700",   border:"border-rose-200"},
-  emerald:{bg:"bg-emerald-50",text:"text-emerald-700",border:"border-emerald-200"},
-  slate:  {bg:"bg-slate-100", text:"text-slate-600",  border:"border-slate-200"},
-};
+const AI_FEATURES = [
+  "Packet Rate", "Request Interval", "Click Speed", "Session Pattern",
+  "URL Repetition", "L7 Behavior", "User-Agent", "IP Reputation"
+];
 
-export default function Page() {
-  const [sid, setSid] = useState(1);
-  const [sim, setSim] = useState<Sim>("idle");
-  const [scanStep, setScanStep] = useState(-1);
+/* --- MAIN PAGE --- */
+export default function SimulationPage() {
+  const [activeScen, setActiveScen] = useState(1);
+  const [simStep, setSimStep] = useState(0); // 0: Idle, 1: Monitor, 2: Extract, 3: Analyze, 4: Decision
+  
+  // Scen 1
+  const [scanTime, setScanTime] = useState(0);
+  
+  // Scen 2
+  const [chartData, setChartData] = useState(BASE_TRAFFIC);
+  
+  // Scen 3
   const [synCount, setSynCount] = useState(0);
-  const [featIdx, setFeatIdx]   = useState(0);
+  const [flowLines, setFlowLines] = useState<{ id: number, type: "normal" | "attack", step: number }[]>([]);
+  
+  // Scen 4
+  const [aiScores, setAiScores] = useState({ human: 95, bot: 5, conf: 40 });
+  const [activeFeat, setActiveFeat] = useState(-1);
 
-  const sc = SC.find(s=>s.id===sid)!;
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const reset = () => { setSim("idle"); setScanStep(-1); setSynCount(0); setFeatIdx(0); };
-  const run   = () => { reset(); setTimeout(()=>{ setSim("analyzing"); setTimeout(()=>setSim("complete"),3500); },50); };
+  const resetAll = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setSimStep(0);
+    setScanTime(0);
+    setChartData(BASE_TRAFFIC);
+    setSynCount(0);
+    setFlowLines([]);
+    setAiScores({ human: 95, bot: 5, conf: 40 });
+    setActiveFeat(-1);
+  };
 
-  useEffect(()=>{ if(sid!==1||sim!=="analyzing") return; let i=0; const t=setInterval(()=>{ setScanStep(i++); if(i>=PKTS.length) clearInterval(t); },380); return()=>clearInterval(t); },[sid,sim]);
-  useEffect(()=>{ if(sid!==3||sim!=="analyzing") return; const t=setInterval(()=>setSynCount(c=>Math.min(c+Math.floor(Math.random()*55+10),850)),110); return()=>clearInterval(t); },[sid,sim]);
-  useEffect(()=>{ if(sid!==4||sim!=="analyzing") return; let i=0; const t=setInterval(()=>{ setFeatIdx(i++); if(i>=FEATS.length) clearInterval(t); },320); return()=>clearInterval(t); },[sid,sim]);
+  const changeScen = (id: number) => {
+    if (simStep > 0 && simStep < 4) return;
+    setActiveScen(id);
+    resetAll();
+  };
 
-  const c = CLR[sc.color];
+  const runSim = () => {
+    if (simStep !== 0) return;
+    
+    let currentStep = 1;
+    setSimStep(1);
+    
+    const nextStep = () => {
+      currentStep++;
+      if (currentStep <= 4) setSimStep(currentStep);
+    };
+
+    if (activeScen === 1) {
+      setTimeout(nextStep, 600);
+      setTimeout(nextStep, 1200);
+      
+      let t = 0;
+      timerRef.current = setInterval(() => {
+        t += 0.5;
+        setScanTime(t);
+        if (t >= 4.5) { // Malicious packet caught at time 3.5, wait 1s
+          clearInterval(timerRef.current!);
+          setSimStep(4);
+        }
+      }, 500);
+
+    } else if (activeScen === 2) {
+      setTimeout(nextStep, 800);
+      setTimeout(nextStep, 1600);
+      
+      let point = 12;
+      timerRef.current = setInterval(() => {
+        setChartData(prev => [...prev, SPIKE_TRAFFIC[point]]);
+        point++;
+        if (point >= 15) {
+          clearInterval(timerRef.current!);
+          setSimStep(4);
+        }
+      }, 600);
+
+    } else if (activeScen === 3) {
+      setTimeout(nextStep, 800);
+      setTimeout(nextStep, 1600);
+      
+      let count = 0;
+      let tick = 0;
+      timerRef.current = setInterval(() => {
+        tick++;
+        if (tick < 3) {
+          setFlowLines(p => [...p, { id: tick, type: "normal", step: tick }]);
+        } else {
+          setFlowLines(p => [...p, { id: tick, type: "attack", step: tick }]);
+          count += 124;
+          setSynCount(count);
+        }
+        if (count > 500) {
+          clearInterval(timerRef.current!);
+          setSimStep(4);
+        }
+      }, 400);
+
+    } else if (activeScen === 4) {
+      setTimeout(nextStep, 600);
+      setTimeout(nextStep, 1800);
+      
+      let f = -1;
+      timerRef.current = setInterval(() => {
+        f++;
+        setActiveFeat(f);
+        setAiScores({
+          human: Math.max(2, 95 - f * 11),
+          bot: Math.min(98, 5 + f * 11),
+          conf: Math.min(99, 40 + f * 7),
+        });
+        if (f >= AI_FEATURES.length - 1) {
+          clearInterval(timerRef.current!);
+          setSimStep(4);
+        }
+      }, 400);
+    }
+  };
+
+  const steps = ["Monitoring", "Extracting Signals", "Analyzing", "Decision"];
+  
+  const getResult = () => {
+    if (activeScen === 1) return { title: "Attack Detected", reason: "Known signature matched." };
+    if (activeScen === 2) return { title: "Anomaly Detected", reason: "Traffic exceeded baseline." };
+    if (activeScen === 3) return { title: "Protocol Abuse", reason: "Too many incomplete handshakes." };
+    return { title: "Bot-like L7 Pattern", reason: "Behavior does not match human traffic." };
+  };
 
   return (
-    <div className="min-h-screen bg-white" style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm shadow-blue-200">
-              <Shield className="w-5 h-5 text-white"/>
-            </div>
-            <div>
-              <div className="font-bold text-slate-900 text-sm">AI-Driven DoS/DDoS Detection Dashboard</div>
-              <div className="text-slate-400 text-xs mt-0.5">Defensive Simulation · Ahmad Osman · Stage 4 · 2026</div>
-            </div>
-          </div>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"/>Live Engine
-          </span>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100 flex flex-col pb-12">
+      
+      {/* HERO SECTION */}
+      <header className="pt-12 pb-8 px-6 text-center shrink-0">
+        <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+          <Shield className="w-6 h-6 text-blue-600" />
         </div>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+          AI-Driven Cyber Defense
+        </h1>
+        <p className="text-sm font-medium text-slate-500 max-w-md mx-auto">
+          Interactive simulation of signature, anomaly, protocol, and behavioral AI detection engines.
+        </p>
       </header>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-6 py-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-4">
-            <Zap className="w-3 h-3"/>Cybersecurity Seminar Presentation
-          </span>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 leading-tight">
-            Interactive Scenario Simulator<br/>
-            <span className="text-blue-600">AI-Driven Attack Detection</span>
-          </h1>
-          <p className="text-slate-500 text-base max-w-2xl mb-8">
-            Explore how signature matching, anomaly detection, protocol analysis, and machine learning identify malicious traffic through guided visual simulations.
-          </p>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {l:"Traffic Status",v:sim==="complete"?sc.result:sim==="analyzing"?"Analyzing…":"Monitoring",cl:sim==="complete"?"rose":sim==="analyzing"?"amber":"blue"},
-              {l:"Detection Mode",  v:sc.mode,       cl:sc.color},
-              {l:"Risk Level",      v:sim==="complete"?sc.risk:"—",   cl:sim==="complete"?(sc.risk==="Critical"||sc.risk==="High"?"rose":"amber"):"slate"},
-              {l:"AI Confidence",   v:sim==="complete"?sc.conf:"—",   cl:"emerald"},
-            ].map(k=>{ const kc=CLR[k.cl]||CLR.slate; return (
-              <div key={k.l} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                <div className={`text-sm font-bold mb-0.5 ${sim==="complete"?kc.text:"text-slate-800"}`}>{k.v}</div>
-                <div className="text-xs text-slate-400">{k.l}</div>
-              </div>
-            );})}
+      {/* SIMULATION STAGE */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-6 flex flex-col">
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1 flex flex-col overflow-hidden relative">
+          
+          {/* Top Bar: Controls & Progress */}
+          <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row items-center justify-between gap-6 bg-white/50 backdrop-blur-md z-20">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <button 
+                onClick={runSim} 
+                disabled={simStep !== 0} 
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] disabled:opacity-50 disabled:shadow-none"
+              >
+                <Play className="w-4 h-4 fill-current" /> Run Simulation
+              </button>
+              <button 
+                onClick={resetAll} 
+                disabled={simStep === 0} 
+                className="flex items-center justify-center bg-white text-slate-600 border border-slate-200 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+                title="Reset"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Progress Timeline */}
+            <div className="flex items-center w-full md:w-auto gap-2 text-xs font-semibold">
+              {steps.map((s, i) => {
+                const isActive = simStep === i + 1;
+                const isPast = simStep > i + 1 || simStep === 4;
+                return (
+                  <React.Fragment key={s}>
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-300
+                      ${isActive ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100 scale-105" : isPast ? "text-slate-400" : "text-slate-300"}
+                    `}>
+                      {isPast ? <CheckCircle className="w-3.5 h-3.5" /> : isActive ? <Zap className="w-3.5 h-3.5 animate-pulse" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-30" />}
+                      <span className="hidden sm:inline">{s}</span>
+                    </div>
+                    {i < 3 && <div className={`w-4 h-px ${isPast ? "bg-blue-200" : "bg-slate-100"}`} />}
+                  </React.Fragment>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      </section>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-xl font-black text-slate-900 mb-2">Detection Scenarios</h2>
-        <p className="text-slate-500 text-sm mb-6">Select a scenario, then run the simulation to observe the detection engine live.</p>
+          {/* Center: Visual Model */}
+          <div className="flex-1 p-8 flex items-center justify-center relative min-h-[400px] bg-slate-50/30 overflow-hidden">
+            
+            {/* Stage Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.03)_0%,transparent_70%)] pointer-events-none" />
+            <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-        {/* Scenario selector */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          {SC.map(s=>{ const sc2=CLR[s.color]; const on=sid===s.id; return (
-            <button key={s.id} onClick={()=>{setSid(s.id);reset();}}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition-all duration-200 text-left
-                ${on?`${sc2.bg} ${sc2.text} ${sc2.border} shadow-sm`:"bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}>
-              {s.icon}<span>{s.label}</span>
-            </button>
-          );})}
-        </div>
+            {/* SCENARIO 1: SIGNATURE */}
+            {activeScen === 1 && (
+              <div className="w-full max-w-3xl flex flex-col items-center relative z-10">
+                <div className="w-full h-40 relative flex items-center justify-center">
+                  
+                  {/* Scanner Gate */}
+                  <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-32 h-48 bg-white/80 backdrop-blur-md border border-slate-100 rounded-[2rem] shadow-xl z-20 flex flex-col items-center justify-center">
+                    <Fingerprint className={`w-10 h-10 transition-colors duration-500 ${simStep === 4 ? "text-red-500" : "text-blue-500"}`} />
+                    {/* Scanning Beam */}
+                    {simStep > 0 && simStep < 4 && (
+                      <div className="absolute inset-x-4 top-4 h-1 bg-blue-400 blur-[1px] animate-[scanBeam_1.5s_ease-in-out_infinite]" />
+                    )}
+                  </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Visualization */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${c.bg} ${c.text}`}>{sc.icon}</div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">{sc.label} Detection</div>
-                    <div className="text-xs text-slate-400">{sc.mode}</div>
+                  {/* Packet Track */}
+                  <div className="absolute inset-x-0 h-px bg-slate-200 border-t border-dashed border-slate-300" />
+
+                  {/* Packets */}
+                  {SIGNATURES.map((pkt) => {
+                    const progress = Math.max(0, scanTime - pkt.delay);
+                    let xPos = progress * 200; // Move right
+                    let status = "approaching";
+                    
+                    if (xPos > 400 && !pkt.bad) {
+                      status = "passed";
+                    } else if (pkt.bad && xPos >= 300) {
+                      xPos = 300; // Stop inside scanner
+                      status = simStep === 4 ? "caught" : "scanning";
+                    }
+
+                    return (
+                      <div 
+                        key={pkt.id} 
+                        className={`absolute left-0 w-16 h-20 rounded-2xl border-2 flex items-center justify-center font-mono text-sm font-bold transition-all duration-300 ease-linear shadow-sm
+                          ${status === "caught" ? "bg-red-50 border-red-300 text-red-600 scale-110 z-30 shadow-red-100 animate-[shake_0.5s_ease-in-out]" : status === "scanning" ? "bg-white border-blue-300 text-blue-500 z-30 scale-105" : status === "passed" ? "bg-white border-emerald-200 text-emerald-400 opacity-0" : "bg-white border-slate-200 text-slate-400 z-10"}
+                        `}
+                        style={{ transform: `translateX(${xPos}px) translateY(-50%)`, top: '50%' }}
+                      >
+                        {pkt.type}
+                        
+                        {status === "caught" && (
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-bounce">
+                            Signature Match
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SCENARIO 2: ANOMALY */}
+            {activeScen === 2 && (
+              <div className="w-full max-w-4xl h-full flex flex-col justify-center relative z-10">
+                <div className="h-72 w-full relative bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="normalGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.2}/>
+                          <stop offset="100%" stopColor="#3B82F6" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#EF4444" stopOpacity={0.4}/>
+                          <stop offset="100%" stopColor="#EF4444" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="t" hide />
+                      <YAxis stroke="#CBD5E1" fontSize={11} tickLine={false} axisLine={false} />
+                      {/* @ts-ignore */}
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: '1px solid #F1F5F9', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)' }} formatter={(v: any) => [v, "Mbps"]} />
+                      
+                      <ReferenceLine y={70} stroke="#EF4444" strokeDasharray="4 4" strokeWidth={1.5} />
+                      
+                      <Area 
+                        type="monotone" 
+                        dataKey="v" 
+                        stroke={simStep === 4 ? "#EF4444" : "#3B82F6"} 
+                        strokeWidth={3} 
+                        fill={simStep === 4 ? "url(#dangerGrad)" : "url(#normalGrad)"} 
+                        isAnimationActive={true} 
+                        animationDuration={400} 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Floating Labels */}
+                  <div className="absolute top-[80px] left-10 text-[10px] font-bold text-red-400 bg-red-50/80 px-2 py-1 rounded-md">
+                    Safe Threshold
+                  </div>
+                  
+                  {simStep === 4 && (
+                    <div className="absolute top-8 right-1/4 bg-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-bounce z-20">
+                      Threshold Exceeded
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SCENARIO 3: PROTOCOL */}
+            {activeScen === 3 && (
+              <div className="w-full max-w-3xl flex items-center justify-between px-8 relative z-10">
+                {/* Client */}
+                <div className="flex flex-col items-center gap-4 z-20">
+                  <div className="w-20 h-20 bg-white border border-slate-200 rounded-3xl shadow-md flex items-center justify-center">
+                    <MonitorSmartphone className="w-10 h-10 text-slate-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">Client</span>
+                </div>
+
+                {/* Animated Flow Area */}
+                <div className="flex-1 h-48 relative mx-12">
+                  {flowLines.map((line) => {
+                    const isNormal = line.type === 'normal';
+                    return (
+                      <div key={line.id} className="absolute inset-0 flex items-center justify-center">
+                        {isNormal ? (
+                          <div className="w-full relative h-12 flex flex-col justify-between opacity-0 animate-[fadeInOut_1.5s_ease-in-out_forwards]">
+                            <div className="h-0.5 bg-blue-300 w-full relative"><div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-l-[6px] border-l-blue-300" /><span className="absolute left-1/2 -top-4 -translate-x-1/2 text-[9px] text-blue-500 font-bold">SYN</span></div>
+                            <div className="h-0.5 bg-emerald-300 w-full relative"><div className="absolute left-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-[6px] border-r-emerald-300" /><span className="absolute left-1/2 top-2 -translate-x-1/2 text-[9px] text-emerald-500 font-bold">SYN/ACK</span></div>
+                            <div className="h-0.5 bg-blue-300 w-full relative"><div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-l-[6px] border-l-blue-300" /><span className="absolute left-1/2 -top-4 -translate-x-1/2 text-[9px] text-blue-500 font-bold">ACK</span></div>
+                          </div>
+                        ) : (
+                          <div className="w-full relative h-0.5 bg-red-300 opacity-0 animate-[slideRight_0.4s_ease-out_forwards]" style={{ top: `${(line.id % 5) * 10 - 20}px` }}>
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-l-[6px] border-l-red-300" />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Half-open counter bubble */}
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-28 h-28 rounded-[2rem] bg-white/90 backdrop-blur-md shadow-xl transition-all duration-500 z-30 border-4
+                    ${simStep === 4 ? 'border-red-100 scale-110 shadow-red-100' : 'border-slate-50'}
+                  `}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Half-Open</span>
+                    <span className={`text-3xl font-black font-mono transition-colors ${simStep === 4 ? 'text-red-500' : 'text-slate-800'}`}>{synCount}</span>
                   </div>
                 </div>
-                {sim==="analyzing"&&<span className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold animate-pulse">⟳ Analyzing</span>}
-                {sim==="complete" &&<span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold"><AlertTriangle className="w-3 h-3"/>{sc.result}</span>}
-              </div>
-              <div className="p-6">
 
-                {/* SCENARIO 1 */}
-                {sid===1&&(
-                  <div>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                      {PKTS.map((p,i)=>{ const scanned=scanStep>i; const hit=scanned&&p.bad; const scanning=scanStep===i; return (
-                        <div key={i} className={`rounded-xl border p-3 text-center transition-all duration-300 ${hit?"bg-rose-50 border-rose-300 scale-105":scanning?"bg-blue-50 border-blue-300":scanned?"bg-slate-50 border-slate-200":"bg-white border-slate-200"}`}>
-                          <div className={`text-xs font-mono font-bold mb-1.5 ${hit?"text-rose-600":"text-slate-400"}`}>{p.l}</div>
-                          {hit?<AlertTriangle className="w-5 h-5 text-rose-500 mx-auto"/>:scanning?<Search className="w-5 h-5 text-blue-500 mx-auto animate-pulse"/>:scanned?<CheckCircle className="w-5 h-5 text-emerald-400 mx-auto"/>:<div className="w-5 h-1.5 bg-slate-200 rounded mx-auto"/>}
-                          {hit&&<div className="text-[9px] text-rose-600 font-bold mt-1">MATCH</div>}
-                        </div>
-                      );})}
-                    </div>
-                    {sim!=="idle"&&(
-                      <div>
-                        <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Scan progress</span><span>{Math.min(100,Math.round(((scanStep+1)/PKTS.length)*100))}%</span></div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{width:`${Math.min(100,Math.round(((scanStep+1)/PKTS.length)*100))}%`}}/></div>
+                {/* Server */}
+                <div className="flex flex-col items-center gap-4 z-20 relative">
+                  <div className={`w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-500 border-2 relative
+                    ${simStep === 4 ? 'bg-red-50 border-red-200 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'bg-blue-50 border-blue-100 shadow-md'}
+                  `}>
+                    <Server className={`w-10 h-10 ${simStep === 4 ? 'text-red-500' : 'text-blue-600'}`} />
+                    
+                    {/* Stacked connection dots */}
+                    {synCount > 0 && (
+                      <div className="absolute -left-6 top-2 bottom-2 w-4 flex flex-col-reverse flex-wrap gap-1 content-start overflow-hidden">
+                        {Array.from({length: Math.min(30, Math.floor(synCount / 15))}).map((_,i) => (
+                          <div key={i} className="w-1.5 h-1.5 bg-red-400 rounded-full animate-[popIn_0.2s_ease-out]" />
+                        ))}
                       </div>
                     )}
                   </div>
-                )}
-
-                {/* SCENARIO 2 */}
-                {sid===2&&(
-                  <div>
-                    <ResponsiveContainer width="100%" height={240}>
-                      <AreaChart data={sim==="complete"?SPIKE:NORMAL} margin={{top:10,right:10,bottom:0,left:-20}}>
-                        <defs>
-                          <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563EB" stopOpacity={0.2}/>
-                            <stop offset="100%" stopColor="#2563EB" stopOpacity={0.02}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                        <XAxis dataKey="t" tick={{fill:"#94a3b8",fontSize:10}} tickLine={false}/>
-                        <YAxis tick={{fill:"#94a3b8",fontSize:10}} tickLine={false} domain={[0,130]}/>
-                        <ReferenceLine y={65} stroke="#ef4444" strokeDasharray="5 3" label={{value:"⚠ Threshold",fill:"#ef4444",fontSize:10,position:"insideTopRight"}}/>
-                        {/* @ts-ignore */}
-                        <Tooltip contentStyle={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:10,fontSize:11}} formatter={(v:any)=>[typeof v==="number"?`${v.toFixed(1)} Mbps`:v,"Traffic"]}/>
-                        <Area type="monotone" dataKey="v" stroke="#2563EB" strokeWidth={2.5} fill="url(#gA)" dot={false} activeDot={{r:4,fill:"#2563EB"}}/>
-                      </AreaChart>
-                    </ResponsiveContainer>
-                    {sim==="complete"&&<div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200"><AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0"/><span className="text-xs text-rose-700 font-semibold">Traffic spiked 82% above baseline — anomaly alert triggered at T=14</span></div>}
-                  </div>
-                )}
-
-                {/* SCENARIO 3 */}
-                {sid===3&&(
-                  <div>
-                    <div className="grid grid-cols-3 gap-3 text-center text-xs mb-5">
-                      {["CLIENT","NETWORK","SERVER"].map(n=>(
-                        <div key={n} className="rounded-xl bg-slate-50 border border-slate-200 py-3 font-bold text-slate-600">{n}</div>
-                      ))}
-                    </div>
-                    <div className="space-y-2 mb-5">
-                      {[{label:"SYN →",complete:true},{label:"SYN/ACK ←",complete:true},{label:"ACK → ✓",complete:true}].map((r,i)=>(
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <div className="flex-1 h-0.5 bg-emerald-300 rounded"/>
-                          <span className="text-emerald-700 font-semibold px-2">{r.label}</span>
-                          <div className="flex-1 h-0.5 bg-emerald-300 rounded"/>
-                        </div>
-                      ))}
-                      {sim!=="idle"&&Array.from({length:Math.min(5,Math.floor(synCount/120))}).map((_,i)=>(
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <div className="flex-1 h-0.5 bg-rose-300 rounded"/>
-                          <span className="text-rose-600 font-semibold px-2">SYN → (no ACK)</span>
-                          <div className="flex-1 h-0.5 border-t-2 border-rose-300 border-dashed rounded"/>
-                        </div>
-                      ))}
-                    </div>
-                    <div className={`rounded-xl border p-4 transition-all duration-500 ${synCount>500?"bg-rose-50 border-rose-300":"bg-amber-50 border-amber-200"}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-700">Half-Open Connections</span>
-                        <span className={`text-xl font-black ${synCount>500?"text-rose-600":"text-amber-600"}`}>{synCount.toLocaleString()}</span>
-                      </div>
-                      <div className="h-2 bg-white rounded-full overflow-hidden border border-slate-200">
-                        <div className="h-full rounded-full transition-all duration-200" style={{width:`${Math.min(100,(synCount/850)*100)}%`,background:synCount>500?"#ef4444":"#f59e0b"}}/>
-                      </div>
-                      {sim==="complete"&&<p className="text-xs text-rose-700 font-semibold mt-2">⚠ Resource exhaustion threshold exceeded — SYN Flood confirmed</p>}
-                    </div>
-                  </div>
-                )}
-
-                {/* SCENARIO 4 */}
-                {sid===4&&(
-                  <div>
-                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">AI Decision Core</div>
-                          <div className="text-base font-black">Behavioural Classification Engine</div>
-                        </div>
-                        <div className="w-9 h-9 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
-                          <Brain className="w-5 h-5 text-violet-300"/>
-                        </div>
-                      </div>
-                      {/* Feature chips */}
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {FEATS.map((f,i)=>(
-                          <span key={f} className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-all duration-300 ${i<featIdx?"bg-violet-500/30 text-violet-300 border border-violet-500/40":"bg-white/5 text-slate-600 border border-white/10"}`}>{f}</span>
-                        ))}
-                      </div>
-                      {/* Metrics */}
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        {[
-                          {l:"Model Accuracy",v:"99.7%",c:"text-violet-300"},
-                          {l:"Bot Probability",v:sim==="complete"?"0.973":"—",c:"text-rose-400"},
-                          {l:"Packets/sec",v:"3.2M",c:"text-blue-300"},
-                          {l:"Layer-7 Match",v:sim==="complete"?"YES":"—",c:"text-amber-300"},
-                        ].map(m=>(
-                          <div key={m.l} className="rounded-xl bg-white/5 border border-white/10 p-3">
-                            <div className={`text-sm font-black ${m.c}`}>{m.v}</div>
-                            <div className="text-slate-500 text-xs mt-0.5">{m.l}</div>
-                          </div>
-                        ))}
-                      </div>
-                      {sim==="complete"&&(
-                        <div className="rounded-xl bg-rose-500/20 border border-rose-500/40 p-3 flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0"/>
-                          <span className="text-rose-300 text-xs font-bold">AI Decision: Application-Layer DDoS (Bot) · Confidence 99.7%</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      {[{l:"Supervised Learning",d:"Trained on CICIDS2017 labeled flows"},{l:"Unsupervised Learning",d:"Detects anomalies without known labels"}].map(m=>(
-                        <div key={m.l} className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                          <div className="font-bold text-slate-700 mb-0.5">{m.l}</div>
-                          <div className="text-slate-500">{m.d}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">Server</span>
+                </div>
               </div>
+            )}
 
-              {/* Actions */}
-              <div className="px-6 pb-5 flex gap-3">
-                <button onClick={run} disabled={sim==="analyzing"}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-sm shadow-blue-200 hover:bg-blue-700 disabled:opacity-50 transition-all">
-                  <Play className="w-4 h-4"/>Run Simulation
-                </button>
-                <button onClick={reset}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:border-slate-300 transition-all">
-                  <RotateCcw className="w-4 h-4"/>Reset
-                </button>
+            {/* SCENARIO 4: AI */}
+            {activeScen === 4 && (
+              <div className="w-full max-w-4xl flex flex-col md:flex-row items-center justify-center gap-16 relative z-10">
+                
+                {/* Feature Pipeline */}
+                <div className="flex flex-col gap-3 w-48 relative z-20">
+                  {AI_FEATURES.map((feat, i) => {
+                    const isActive = activeFeat === i;
+                    const isDone = activeFeat > i;
+                    return (
+                      <div key={feat} className="relative">
+                        <div className={`text-[10px] font-bold uppercase tracking-wider px-4 py-2.5 rounded-2xl border transition-all duration-300 flex items-center gap-3 relative z-10
+                          ${isActive ? "bg-white border-blue-300 text-blue-600 shadow-lg scale-105" : isDone ? "bg-slate-50 border-slate-100 text-slate-400" : "bg-transparent border-transparent text-slate-300"}
+                        `}>
+                          <div className={`w-2 h-2 rounded-full ${isActive ? "bg-blue-500 animate-ping" : isDone ? "bg-slate-300" : "bg-slate-200"}`} />
+                          {feat}
+                        </div>
+                        {/* Connecting Line */}
+                        {isDone && (
+                          <div className="absolute top-1/2 left-full w-24 h-px bg-slate-200 -z-10" />
+                        )}
+                        {isActive && (
+                          <div className="absolute top-1/2 left-full w-24 h-0.5 bg-gradient-to-r from-blue-400 to-transparent -z-10" />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* AI Core */}
+                <div className="relative z-20 flex-shrink-0 mx-8">
+                  <div className={`w-48 h-48 rounded-[2.5rem] border-8 bg-white/90 backdrop-blur-xl flex flex-col items-center justify-center shadow-2xl transition-all duration-700 relative z-20
+                    ${simStep === 4 ? 'border-red-100 shadow-red-200/50 scale-105' : 'border-blue-50 shadow-blue-200/30'}
+                  `}>
+                    <Brain className={`w-14 h-14 mb-4 transition-colors duration-700 ${simStep === 4 ? 'text-red-500' : 'text-blue-600'}`} />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Core</span>
+                  </div>
+                  {/* Pulse rings */}
+                  {simStep > 0 && simStep < 4 && (
+                    <>
+                      <div className="absolute inset-0 rounded-[2.5rem] border-2 border-blue-400 animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite] opacity-30 z-10" />
+                      <div className="absolute inset-0 rounded-[2.5rem] border-2 border-blue-400 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] opacity-10 z-10" />
+                    </>
+                  )}
+                </div>
+
+                {/* Probability Bars */}
+                <div className="w-56 flex flex-col gap-6 z-20 bg-white/60 backdrop-blur-md p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <span className="text-slate-400">Human Prob</span>
+                      <span className="text-slate-700">{aiScores.human}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 transition-all duration-300" style={{ width: `${aiScores.human}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <span className="text-slate-400">Bot Prob</span>
+                      <span className="text-slate-700">{aiScores.bot}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-red-400 transition-all duration-300" style={{ width: `${aiScores.bot}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <span className="text-slate-400">AI Confidence</span>
+                      <span className="text-blue-600">{aiScores.conf}%</span>
+                    </div>
+                    <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${aiScores.conf}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Result Pill (Floating over stage) */}
+          <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 transition-all duration-500 z-50
+            ${simStep === 4 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'}
+          `}>
+            <div className="px-6 py-4 rounded-3xl bg-white/95 backdrop-blur-xl border border-red-100 shadow-[0_10px_40px_rgba(239,68,68,0.15)] flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center shrink-0 border border-red-100">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 leading-none mb-1.5">{getResult().title}</h4>
+                <p className="text-xs font-semibold text-slate-500">{getResult().reason}</p>
               </div>
             </div>
           </div>
 
-          {/* Right panel */}
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Eye className="w-4 h-4 text-blue-600"/>
-                <h3 className="font-bold text-slate-900 text-sm">Why was this detected?</h3>
-              </div>
-              {sim==="complete"?(
-                <p className="text-slate-600 text-sm leading-relaxed">{sc.why}</p>
-              ):(
-                <p className="text-slate-400 text-sm">Run the simulation to see the detection reasoning.</p>
-              )}
-            </div>
-            <div className={`rounded-2xl border p-5 ${c.bg} ${c.border}`}>
-              <div className={`text-xs font-bold uppercase tracking-widest mb-2 ${c.text}`}>Beginner Explanation</div>
-              <p className={`text-sm leading-relaxed ${c.text} opacity-90`}>{sc.b}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Academic Context</div>
-              <p className="text-slate-600 text-sm leading-relaxed">{sc.a}</p>
-              {sid===4&&<p className="text-slate-500 text-xs mt-2 pt-2 border-t border-slate-100">CICIDS2017 features: packet count, flow duration, inter-arrival time, protocol stats.</p>}
-            </div>
-          </div>
         </div>
 
-        {/* Seminar card */}
-        <div className="mt-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-200">
-          <div className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-2">Seminar Script</div>
-          <p className="text-base leading-relaxed">
-            "In DoS and DDoS defense, the core challenge is distinguishing legitimate users from malicious traffic.
-            <strong className="font-semibold"> Signature-based detection</strong> identifies known attack fingerprints.
-            <strong className="font-semibold"> Anomaly-based detection</strong> finds deviations from normal behaviour.
-            <strong className="font-semibold"> Protocol analysis</strong> detects misuse of network rules.
-            <strong className="font-semibold"> AI-based detection</strong> studies large-scale behavioural patterns in real time — achieving 99.7% accuracy on the CICIDS2017 dataset."
-          </p>
+        {/* SCENARIO CARDS (Bottom Row) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pb-12">
+          
+          <button onClick={() => changeScen(1)} className={`text-left p-6 rounded-[2rem] border transition-all duration-300 group
+            ${activeScen === 1 ? 'bg-white border-blue-200 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50' : 'bg-white/50 border-slate-100 hover:bg-white hover:border-slate-200 shadow-sm hover:shadow-md'}
+          `}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300
+              ${activeScen === 1 ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}
+            `}>
+              <Fingerprint className="w-6 h-6" />
+            </div>
+            <h3 className={`font-black text-sm mb-1.5 ${activeScen === 1 ? 'text-slate-900' : 'text-slate-700'}`}>Signature</h3>
+            <p className="text-xs font-semibold text-slate-400 line-clamp-1">Known fingerprint match</p>
+          </button>
+
+          <button onClick={() => changeScen(2)} className={`text-left p-6 rounded-[2rem] border transition-all duration-300 group
+            ${activeScen === 2 ? 'bg-white border-blue-200 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50' : 'bg-white/50 border-slate-100 hover:bg-white hover:border-slate-200 shadow-sm hover:shadow-md'}
+          `}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300
+              ${activeScen === 2 ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}
+            `}>
+              <Activity className="w-6 h-6" />
+            </div>
+            <h3 className={`font-black text-sm mb-1.5 ${activeScen === 2 ? 'text-slate-900' : 'text-slate-700'}`}>Anomaly</h3>
+            <p className="text-xs font-semibold text-slate-400 line-clamp-1">Traffic above baseline</p>
+          </button>
+
+          <button onClick={() => changeScen(3)} className={`text-left p-6 rounded-[2rem] border transition-all duration-300 group
+            ${activeScen === 3 ? 'bg-white border-blue-200 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50' : 'bg-white/50 border-slate-100 hover:bg-white hover:border-slate-200 shadow-sm hover:shadow-md'}
+          `}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300
+              ${activeScen === 3 ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}
+            `}>
+              <Network className="w-6 h-6" />
+            </div>
+            <h3 className={`font-black text-sm mb-1.5 ${activeScen === 3 ? 'text-slate-900' : 'text-slate-700'}`}>Protocol</h3>
+            <p className="text-xs font-semibold text-slate-400 line-clamp-1">TCP connection abuse</p>
+          </button>
+
+          <button onClick={() => changeScen(4)} className={`text-left p-6 rounded-[2rem] border transition-all duration-300 group
+            ${activeScen === 4 ? 'bg-white border-blue-200 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50' : 'bg-white/50 border-slate-100 hover:bg-white hover:border-slate-200 shadow-sm hover:shadow-md'}
+          `}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300
+              ${activeScen === 4 ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}
+            `}>
+              <Brain className="w-6 h-6" />
+            </div>
+            <h3 className={`font-black text-sm mb-1.5 ${activeScen === 4 ? 'text-slate-900' : 'text-slate-700'}`}>AI & ML</h3>
+            <p className="text-xs font-semibold text-slate-400 line-clamp-1">Behavioral classification</p>
+          </button>
+
         </div>
       </main>
 
-      <footer className="text-center py-6 text-slate-400 text-xs border-t border-slate-100 mt-8">
-        DoS &amp; DDoS Defense Lab · Ahmad Osman · ahmadosman7212@gmail.com · 2026
-      </footer>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scanBeam {
+          0%, 100% { top: 10%; }
+          50% { top: 90%; }
+        }
+        @keyframes slideRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(300px) translateY(-50%) rotate(0deg); }
+          25% { transform: translateX(295px) translateY(-50%) rotate(-5deg); }
+          50% { transform: translateX(305px) translateY(-50%) rotate(5deg); }
+          75% { transform: translateX(295px) translateY(-50%) rotate(-5deg); }
+        }
+        @keyframes popIn {
+          0% { transform: scale(0); opacity: 0; }
+          70% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}} />
     </div>
   );
 }
