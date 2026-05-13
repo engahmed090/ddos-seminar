@@ -75,7 +75,7 @@ export default function DatasetModule() {
               <YAxis dataKey="category" type="category" tick={{ fill: "#94a3b8", fontSize: 11 }} width={90} />
               <Tooltip
                 contentStyle={{ background: "#0d1b35", border: "1px solid #1e3a5f", borderRadius: 8, fontSize: 12 }}
-                formatter={(v: number) => [v.toLocaleString(), "Packets"]}
+                formatter={(value: any) => [typeof value === "number" ? value.toLocaleString() : value, "Packets"]}
               />
               <Bar dataKey="packets" radius={[0, 4, 4, 0]}>
                 {TRAFFIC_DIST.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -95,7 +95,7 @@ export default function DatasetModule() {
                   <Pie data={PIE_DATA} cx="50%" cy="50%" outerRadius={60} dataKey="value" strokeWidth={0}>
                     {PIE_DATA.map((d, i) => <Cell key={i} fill={d.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ background: "#0d1b35", border: "1px solid #1e3a5f", borderRadius: 8, fontSize: 11 }} formatter={(v: number) => [`${v}%`, ""]} />
+                  <Tooltip contentStyle={{ background: "#0d1b35", border: "1px solid #1e3a5f", borderRadius: 8, fontSize: 11 }} formatter={(value: any) => [`${typeof value === "number" ? value : 0}%`, ""]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-3">
@@ -120,7 +120,7 @@ export default function DatasetModule() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="label" tick={{ fill: "#475569", fontSize: 10 }} />
                 <YAxis tick={{ fill: "#475569", fontSize: 10 }} />
-                <Tooltip contentStyle={{ background: "#0d1b35", border: "1px solid #1e3a5f", borderRadius: 8, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "#0d1b35", border: "1px solid #1e3a5f", borderRadius: 8, fontSize: 11 }} formatter={(value: any) => [typeof value === "number" ? value.toLocaleString() : value]} />
                 <Bar dataKey="normal" name="Normal" fill="#00d4ff" radius={[2,2,0,0]} />
                 <Bar dataKey="malicious" name="Malicious" fill="#ff2244" radius={[2,2,0,0]} />
               </BarChart>
