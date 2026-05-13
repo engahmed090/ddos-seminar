@@ -1,57 +1,76 @@
 "use client";
+import { useState } from "react";
 import dynamic from "next/dynamic";
-import HeroSection from "@/components/HeroSection";
-import Sidebar from "@/components/Sidebar";
-import CoreContentSection from "@/components/CoreContentSection";
+import { Zap, Database, ShieldCheck } from "lucide-react";
 
-// Lazy-load chart-heavy modules (recharts needs client-side)
-const SimulationModule = dynamic(() => import("@/components/SimulationModule"), { ssr: false });
-const DetectionModule  = dynamic(() => import("@/components/DetectionModule"),  { ssr: false });
-const DatasetModule    = dynamic(() => import("@/components/DatasetModule"),    { ssr: false });
+const SimulatorModule        = dynamic(() => import("@/components/SimulatorModule"),        { ssr: false });
+const DatasetScenariosModule = dynamic(() => import("@/components/DatasetScenariosModule"), { ssr: false });
+const MitigationModule       = dynamic(() => import("@/components/MitigationModule"),       { ssr: false });
 
-export default function HomePage() {
+type Tab = "simulator" | "dataset" | "mitigation";
+
+const TABS = [
+  { id: "simulator"  as Tab, label: "DoS / DDoS Simulator",  sub: "Live Attack Engine",  icon: <Zap         className="w-4 h-4" />, border: "border-cyan-400",    text: "text-cyan-400",    bg: "bg-cyan-400/10"    },
+  { id: "dataset"    as Tab, label: "CICIDS2017 Scenarios",   sub: "Real Attack Dataset", icon: <Database    className="w-4 h-4" />, border: "border-emerald-400", text: "text-emerald-400", bg: "bg-emerald-400/10" },
+  { id: "mitigation" as Tab, label: "Defense Matrix",         sub: "Mitigation Layers",   icon: <ShieldCheck className="w-4 h-4" />, border: "border-rose-400",    text: "text-rose-400",    bg: "bg-rose-400/10"    },
+];
+
+export default function Page() {
+  const [tab, setTab] = useState<Tab>("simulator");
+
   return (
-    <div className="min-h-screen bg-[#020817]">
-      <Sidebar />
+    <div className="min-h-screen bg-slate-950 text-slate-100" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* ── Sticky header ── */}
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-slate-950/90 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-lg font-black tracking-tight leading-none">
+              <span className="text-cyan-400">DoS</span>
+              <span className="text-slate-500 mx-1.5">&amp;</span>
+              <span className="text-rose-400">DDoS</span>
+              <span className="text-white ml-2">Defense Lab</span>
+            </p>
+            <p className="text-slate-500 text-xs mt-0.5">Interactive Cybersecurity Seminar · Ahmad Osman · 2026</p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-emerald-400 text-xs font-semibold">Live Dashboard</span>
+          </div>
+        </div>
 
-      {/* Main content shifted right on desktop */}
-      <main className="lg:ml-56 pt-14 lg:pt-0">
-        <HeroSection />
+        {/* ── Tab bar ── */}
+        <div className="max-w-7xl mx-auto px-6 flex gap-1">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all duration-200
+                  ${active
+                    ? `${t.border} ${t.text} ${t.bg}`
+                    : "border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+              >
+                {t.icon}
+                <span className="hidden sm:block">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </header>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent mx-8" />
-
-        <CoreContentSection />
-
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-red-500/20 to-transparent mx-8 my-4" />
-
-        <SimulationModule />
-
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent mx-8 my-4" />
-
-        <DetectionModule />
-
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent mx-8 my-4" />
-
-        <DatasetModule />
-
-        {/* Footer */}
-        <footer className="text-center py-12 border-t border-white/5 text-slate-600 text-sm">
-          <p className="mb-1">
-            DoS &amp; DDoS Attacks — Cybersecurity Seminar · Stage 4
-          </p>
-          <p>
-            Presented by{" "}
-            <a href="mailto:ahmadosman7212@gmail.com" className="text-cyan-600 hover:text-cyan-400 transition-colors">
-              Ahmad Osman
-            </a>{" "}
-            · {new Date().getFullYear()}
-          </p>
-        </footer>
+      {/* ── Content ── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div key={tab} className="section-enter">
+          {tab === "simulator"  && <SimulatorModule />}
+          {tab === "dataset"    && <DatasetScenariosModule />}
+          {tab === "mitigation" && <MitigationModule />}
+        </div>
       </main>
+
+      <footer className="text-center py-6 text-slate-700 text-xs border-t border-white/5">
+        DoS &amp; DDoS Attacks — Cybersecurity Seminar · Stage 4 · Ahmad Osman
+      </footer>
     </div>
   );
 }
