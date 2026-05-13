@@ -160,13 +160,33 @@ export default function MasterDefenseSuite() {
     const nextStep = () => { currentStep++; if (currentStep <= 4) setDataStep(currentStep); };
     setTimeout(nextStep, 800); setTimeout(nextStep, 1600);
     let c = 0;
+    
+    let targetPps = 0, targetRows = 0, baseAcc = 0;
+    if (activeDataset === 1) { targetPps = 322250; targetRows = 54000; baseAcc = 99.80; }
+    else if (activeDataset === 2) { targetPps = 850000; targetRows = 120000; baseAcc = 99.95; }
+    else { targetPps = 45000; targetRows = 12000; baseAcc = 98.50; }
+
     timerRef.current = setInterval(() => { 
         c++; 
-        setDataStats(prev => ({
-            pps: prev.pps + Math.floor(Math.random() * 8000) + 12000,
-            rows: prev.rows + Math.floor(Math.random() * 80) + 20,
-            accuracy: Math.min(99.8, prev.accuracy + Math.random() * 5 + 4)
-        }));
+        setDataStats(prev => {
+            let newPps = prev.pps + Math.floor(targetPps / 20) + Math.floor(Math.random() * (targetPps * 0.05));
+            let newRows = prev.rows + Math.floor(targetRows / 20) + Math.floor(Math.random() * (targetRows * 0.05));
+            let newAcc = prev.accuracy;
+            
+            if (activeDataset === 1) {
+              newAcc = Math.min(99.85, Math.max(99.75, baseAcc + (Math.random() * 0.1 - 0.05)));
+            } else if (activeDataset === 2) {
+              newAcc = 99.95;
+            } else {
+              newAcc = Math.min(99.1, Math.max(98.5, prev.accuracy === 0 ? baseAcc : prev.accuracy + (Math.random() * 0.2 - 0.05)));
+            }
+            
+            return {
+              pps: newPps,
+              rows: newRows,
+              accuracy: prev.accuracy === 0 ? baseAcc : newAcc
+            };
+        });
         if (c >= 20) { 
             clearInterval(timerRef.current!); 
             setDataStep(4); 
@@ -529,29 +549,7 @@ export default function MasterDefenseSuite() {
                 </div>
               )}
 
-              {/* Mit Scen 5: Auto-Scaling */}
-              {activeMitScen === 5 && (
-                <div className="w-full max-w-6xl flex items-center justify-between px-16 scale-110">
-                  <div className="w-40 h-40 rounded-full border-8 border-slate-700 bg-slate-800 flex flex-col items-center justify-center shadow-2xl text-slate-500">
-                    <Router className="w-14 h-14 mb-2" />
-                    <span className="font-mono font-black text-sm uppercase">LB Core</span>
-                  </div>
 
-                  <div className="flex-1 flex flex-col gap-8 items-center justify-center mx-16">
-                    <div className="w-full flex items-center justify-around gap-6">
-                      {[1, 2, 3, 4].map((srv) => {
-                        const isVisible = srv <= 2 || mitStep === 4;
-                        return (
-                          <div key={srv} className={`flex flex-col items-center justify-center w-36 h-40 rounded-3xl border-4 transition-all duration-500 ${isVisible ? 'bg-slate-800 border-emerald-500 shadow-2xl text-emerald-400 scale-100' : 'border-dashed border-slate-700 bg-slate-900/50 text-slate-700 opacity-40 scale-90'}`}>
-                            <Server className="w-12 h-12 mb-3" />
-                            <span className="font-mono font-black text-sm">INST {srv}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Mit Scen 6: Geo/IP Filtering */}
               {activeMitScen === 6 && (
@@ -593,7 +591,6 @@ export default function MasterDefenseSuite() {
               { id: 2, label: "Anycast Edge" },
               { id: 3, label: "Rate Limit Quota" },
               { id: 4, label: "WAF Proxy" },
-              { id: 5, label: "Elastic LB" },
               { id: 6, label: "Hardware ACL" },
             ].map((tab) => (
               <button
